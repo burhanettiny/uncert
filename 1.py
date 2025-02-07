@@ -50,9 +50,9 @@ def main():
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
-        repeatability = calculate_repeatability(ms_within)
-        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
-        combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
+        repeatability = np.sqrt(ms_within) if ms_within > 0 else float('nan')
+        intermediate_precision = np.sqrt(ms_between - ms_within) if ms_between > ms_within else float('nan')
+        combined_uncertainty = np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
         
         average_value = grand_mean
         expanded_uncertainty = combined_uncertainty * 2
