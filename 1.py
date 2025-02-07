@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import scipy.stats as stats
 import io
+import matplotlib.pyplot as plt
 
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
@@ -60,12 +61,27 @@ def main():
         
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [average_value, repeatability, intermediate_precision, combined_uncertainty, expanded_uncertainty, relative_expanded_uncertainty],
+            "Değer": [f"{average_value:.5f}", f"{repeatability:.5f}", f"{intermediate_precision:.5f}", f"{combined_uncertainty:.5f}", f"{expanded_uncertainty:.5f}", f"{relative_expanded_uncertainty:.5f}"],
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
         st.subheader("Sonuçlar")
         st.table(results_df)
+        
+        fig, ax = plt.subplots()
+        ax.bar(results_df["Parametre"], [float(val) for val in results_df["Değer"]], yerr=[extra_uncertainty]*len(results_df), capsize=5)
+        ax.set_ylabel("Değer")
+        ax.set_title("Hata Bar Grafiği")
+        st.pyplot(fig)
+        
+        fig, ax = plt.subplots()
+        for i, group in enumerate(measurements):
+            ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}")
+        ax.set_xlabel("Ölçüm Numarası")
+        ax.set_ylabel("Değer")
+        ax.set_title("Günlük Ölçüm Sonuçları")
+        ax.legend()
+        st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
