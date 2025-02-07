@@ -40,8 +40,10 @@ def main():
     else:
         return
     
-    # Veri çerçevesine sütun isimlerini ekleyin
-    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    # Veri çerçevesindeki sütun sayısını kontrol et
+    num_columns = df.shape[1]
+    column_names = [f"Gün {i+1}" for i in range(num_columns)]  # Dinamik sütun isimleri
+    df.columns = column_names
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     
@@ -91,7 +93,7 @@ def main():
         
         # Hata bar grafiği
         fig, ax = plt.subplots()
-        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
+        x_labels = [f"Gün {i+1}" for i in range(num_columns)] + ["Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
         y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
