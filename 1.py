@@ -49,8 +49,18 @@ def main():
         df = pd.read_excel(uploaded_file)
         st.write("## Veriler", df)
         
-        measurements = df.iloc[:, 1:].values  # İlk sütun gün isimleri olabilir, ikinci sütundan itibaren ölçümler alınır
-        
+        # Excel dosyasını oku
+df = pd.read_excel(uploaded_file)  
+
+# İlk sütunu (Gün isimleri) çıkart, sadece ölçüm verilerini al
+df = df.iloc[:, 1:]  
+
+# Tüm hücreleri sayıya çevir, hata olursa NaN yap
+df = df.apply(pd.to_numeric, errors='coerce')
+
+# Boş hücreleri temizle (sadece dolu verileri al)
+measurements = [df.iloc[i].dropna().values for i in range(len(df))]
+     
         if st.button(t["calculate"]):
             avg_values = [calculate_average(day) for day in measurements]
             uncertainty_values = [calculate_standard_uncertainty(day) for day in measurements]
