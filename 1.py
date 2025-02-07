@@ -74,8 +74,13 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        st.subheader(texts[language]["results"])
-        st.dataframe(results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'}))
+        # Dataframe sütun adlarını kontrol edelim
+        st.write("Sonuçlar Tablosu:")
+        st.dataframe(results_df)
+        
+        # Şimdi st.dataframe stil uygulaması yapalım
+        results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
+        st.dataframe(results_df_styled)
         
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
