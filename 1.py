@@ -7,7 +7,7 @@ def calculate_repeatability(ms_within):
     return np.sqrt(ms_within)
 
 def calculate_intermediate_precision(ms_within, ms_between):
-    return np.sqrt(ms_between - ms_within)
+    return np.sqrt(max(ms_between - ms_within, 0))
 
 def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty):
     return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
@@ -35,8 +35,19 @@ def main():
     
     if len(measurements) > 1:
         anova_result = stats.f_oneway(*measurements)
-        ms_within = anova_result.statistic if anova_result else float('nan')
-        ms_between = np.var([np.mean(m) for m in measurements], ddof=1) if len(measurements) > 1 else float('nan')
+        
+        total_values = sum(len(m) for m in measurements)
+        num_groups = len(measurements)
+        grand_mean = np.mean([val for group in measurements for val in group])
+        
+        ss_between = sum(len(m) * (np.mean(m) - grand_mean) ** 2 for m in measurements)
+        ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
+        
+        df_between = num_groups - 1
+        df_within = total_values - num_groups
+        
+        ms_between = ss_between / df_between if df_between > 0 else float('nan')
+        ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
         repeatability = calculate_repeatability(ms_within)
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
