@@ -5,10 +5,10 @@ import scipy.stats as stats
 import io
 
 def calculate_repeatability(ms_within):
-    return np.sqrt(ms_within)
+    return np.sqrt(ms_within) if ms_within > 0 else float('nan')
 
 def calculate_intermediate_precision(ms_within, ms_between):
-    return np.sqrt(max(ms_between - ms_within, 0))
+    return np.sqrt(ms_between - ms_within) if ms_between > ms_within else float('nan')
 
 def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty):
     return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
@@ -24,13 +24,15 @@ def main():
     
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
-        st.write("Yüklenen Veri:", df)
+        st.write("Yüklenen Veri:")
+        st.dataframe(df)
         measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
     elif pasted_data:
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep="\t", header=None, engine='python')
             measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
-            st.write("Yapıştırılan Veri:", df)
+            st.write("Yapıştırılan Veri:")
+            st.dataframe(df)
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
     
@@ -58,7 +60,7 @@ def main():
         
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [average_value, repeatability, intermediate_precision, combined_uncertainty, expanded_uncertainty, relative_expanded_uncertainty]
+            "Değer": [f"{average_value:.6f}", f"{repeatability:.6f}", f"{intermediate_precision:.6f}", f"{combined_uncertainty:.6f}", f"{expanded_uncertainty:.6f}", f"{relative_expanded_uncertainty:.6f}"]
         })
         
         st.subheader("Sonuçlar")
