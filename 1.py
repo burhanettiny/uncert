@@ -32,7 +32,7 @@ def main():
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            # Veriyi virgülle ayırarak okuma
+            # Yapıştırılan veriyi virgülle ayırarak okuma
             df = pd.read_csv(io.StringIO(pasted_data), sep=",", header=None)  # Virgülle ayırarak okuma
         except Exception as e:
             st.error(f"Error! Please paste data in the correct format. ({str(e)})")
