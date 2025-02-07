@@ -2,6 +2,7 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 import scipy.stats as stats
+import io
 
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within)
@@ -24,18 +25,16 @@ def main():
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
         st.write("Yüklenen Veri:", df)
-        measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
+        measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
     elif pasted_data:
         try:
-            df = pd.read_csv(pd.io.common.StringIO(pasted_data), sep="\s+", header=None)
-            measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
+            df = pd.read_csv(io.StringIO(pasted_data), sep="\t", header=None, engine='python')
+            measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
             st.write("Yapıştırılan Veri:", df)
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
     
     if len(measurements) > 1:
-        anova_result = stats.f_oneway(*measurements)
-        
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
         grand_mean = np.mean([val for group in measurements for val in group])
@@ -53,7 +52,7 @@ def main():
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
         combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
         
-        average_value = np.mean([item for sublist in measurements for item in sublist])
+        average_value = grand_mean
         expanded_uncertainty = combined_uncertainty * 2
         relative_expanded_uncertainty = (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
         
