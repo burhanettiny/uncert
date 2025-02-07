@@ -5,7 +5,7 @@ import scipy.stats as stats
 import io
 
 def calculate_repeatability(ms_within):
-    return np.sqrt(ms_within) if ms_within > 0 else float('nan')
+    return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
 def calculate_intermediate_precision(ms_within, ms_between):
     return np.sqrt(ms_between - ms_within) if ms_between > ms_within else float('nan')
@@ -29,7 +29,7 @@ def main():
         measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
     elif pasted_data:
         try:
-            df = pd.read_csv(io.StringIO(pasted_data), sep="\t", header=None, engine='python')
+            df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
             measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
             st.write("Yapıştırılan Veri:")
             st.dataframe(df)
@@ -50,9 +50,9 @@ def main():
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
-        repeatability = np.sqrt(ms_within) if ms_within > 0 else float('nan')
-        intermediate_precision = np.sqrt(ms_between - ms_within) if ms_between > ms_within else float('nan')
-        combined_uncertainty = np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
+        repeatability = calculate_repeatability(ms_within)
+        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
+        combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
         
         average_value = grand_mean
         expanded_uncertainty = combined_uncertainty * 2
@@ -60,7 +60,7 @@ def main():
         
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [f"{average_value:.6f}", f"{repeatability:.6f}", f"{intermediate_precision:.6f}", f"{combined_uncertainty:.6f}", f"{expanded_uncertainty:.6f}", f"{relative_expanded_uncertainty:.6f}"]
+            "Değer": [average_value, repeatability, intermediate_precision, combined_uncertainty, expanded_uncertainty, relative_expanded_uncertainty]
         })
         
         st.subheader("Sonuçlar")
