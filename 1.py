@@ -51,4 +51,50 @@ def main():
         num_groups = len(measurements)
         grand_mean = np.mean([val for group in measurements for val in group])
         
-        ss_between = sum(le
+        ss_between = sum(len(m) * (np.mean(m) - grand_mean) ** 2 for m in measurements)  # Düzeltilen satır
+        ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
+        
+        df_between = num_groups - 1
+        df_within = total_values - num_groups
+        
+        ms_between = ss_between / df_between if df_between > 0 else float('nan')
+        ms_within = ss_within / df_within if df_within > 0 else float('nan')
+        
+        repeatability = calculate_repeatability(ms_within)
+        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
+        combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
+        
+        average_value = grand_mean
+        expanded_uncertainty = combined_uncertainty * 2
+        relative_expanded_uncertainty = (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
+        
+        results_df = pd.DataFrame({
+            "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
+            "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
+            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
+        })
+        
+        results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
+        st.dataframe(results_df_styled)
+        
+        fig, ax = plt.subplots()
+        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
+        x_values = [np.mean(day) for day in measurements] + [average_value]
+        y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
+        ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+        ax.set_ylabel("Değer")
+        ax.set_xticklabels(x_labels, rotation=90)
+        ax.set_title(texts[language]["error_bar"])
+        st.pyplot(fig)
+        
+        fig, ax = plt.subplots()
+        for i, group in enumerate(measurements):
+            ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}")
+        ax.set_xlabel("Ölçüm Numarası")
+        ax.set_ylabel("Değer")
+        ax.set_title(texts[language]["daily_measurements"])
+        ax.legend()
+        st.pyplot(fig)
+
+if __name__ == "__main__":
+    main()
