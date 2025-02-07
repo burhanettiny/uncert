@@ -21,7 +21,7 @@ def main():
             "upload": "Excel dosyanızı yükleyin",
             "or": "Veya",
             "manual": "Verileri manuel girin",
-            "enter_data": "Ölçümleri hücrelere girin",
+            "paste_data": "Verileri doğrudan Excel'den yapıştırın",
             "calculate": "Sonuçları Hesapla",
             "results": "Sonuçlar",
             "average": "Ortalama",
@@ -33,7 +33,7 @@ def main():
             "upload": "Upload your Excel file",
             "or": "Or",
             "manual": "Enter data manually",
-            "enter_data": "Enter measurements into the cells",
+            "paste_data": "Paste data directly from Excel",
             "calculate": "Calculate Results",
             "results": "Results",
             "average": "Average",
@@ -44,7 +44,7 @@ def main():
 
     st.title(texts[language]["title"])
     
-    data_source = st.radio("", [texts[language]["upload"], texts[language]["manual"]])
+    data_source = st.radio("", [texts[language]["upload"], texts[language]["manual"], texts[language]["paste_data"]])
     
     measurements = []
     
@@ -54,8 +54,17 @@ def main():
             df = pd.read_excel(uploaded_file, header=None)
             st.write(df)
             measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
+    elif data_source == texts[language]["paste_data"]:
+        pasted_data = st.text_area("", "")
+        if pasted_data:
+            try:
+                df = pd.read_csv(pd.compat.StringIO(pasted_data), sep="\t", header=None)
+                measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
+                st.write(df)
+            except Exception:
+                st.error("Hata! Lütfen verileri doğru formatta yapıştırın.")
     else:
-        st.write(texts[language]["enter_data"])
+        st.write(texts[language]["manual"])
         data_matrix = []
         for day in range(3):
             row = []
