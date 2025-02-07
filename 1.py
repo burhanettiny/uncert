@@ -2,6 +2,7 @@ import numpy as np
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import io
 
 def calculate_average(measurements):
     return np.mean(measurements) if len(measurements) > 0 else float('nan')
@@ -58,11 +59,11 @@ def main():
         pasted_data = st.text_area("", "")
         if pasted_data:
             try:
-                df = pd.read_csv(pd.compat.StringIO(pasted_data), sep="\t", header=None)
+                df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
                 measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
                 st.write(df)
-            except Exception:
-                st.error("Hata! Lütfen verileri doğru formatta yapıştırın.")
+            except Exception as e:
+                st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
     else:
         st.write(texts[language]["manual"])
         data_matrix = []
