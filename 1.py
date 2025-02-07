@@ -1,6 +1,7 @@
 import numpy as np
 import streamlit as st
 import pandas as pd
+import scipy.stats as stats
 import io
 import matplotlib.pyplot as plt
 
@@ -39,10 +40,6 @@ def main():
     else:
         return
     
-    # Veri yapısının doğru olduğunu kontrol et
-    st.write("Veri Yapısı:")
-    st.write(df.head())  # Veri başını görüntüle
-    
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
@@ -78,19 +75,8 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # DataFrame'in doğru sütunlarla oluşturulduğundan emin olun
-        if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
-            st.subheader(texts[language]["results"])
-            # Değerlerin doğru biçimde yazıldığından emin olun
-            results_df["Değer"] = results_df["Değer"].astype(str)  # String'e dönüştür
-            results_df["Relative Expanded Uncertainty (%)"] = results_df["Relative Expanded Uncertainty (%)"].astype(str)  # String'e dönüştür
-            # Doğru sütunlara stil uygulayın
-            st.table(results_df.style
-                .set_properties(subset=["Değer"], **{'width': '120px'})
-                .set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
-            )
-        else:
-            st.error("Gerekli sütunlar DataFrame'de bulunmuyor.")
+        st.subheader(texts[language]["results"])
+        st.table(results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'}))
         
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
