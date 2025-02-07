@@ -21,7 +21,7 @@ def main():
             "upload": "Excel dosyanızı yükleyin",
             "or": "Veya",
             "manual": "Verileri manuel girin",
-            "enter_data": "Ölçümleri girin (Her satır bir gün, her hücre bir analiz sonucu olacak şekilde girin)",
+            "enter_data": "Ölçümleri hücrelere girin",
             "calculate": "Sonuçları Hesapla",
             "results": "Sonuçlar",
             "average": "Ortalama",
@@ -33,7 +33,7 @@ def main():
             "upload": "Upload your Excel file",
             "or": "Or",
             "manual": "Enter data manually",
-            "enter_data": "Enter measurements (Each row represents a day, each cell represents an analysis result)",
+            "enter_data": "Enter measurements into the cells",
             "calculate": "Calculate Results",
             "results": "Results",
             "average": "Average",
@@ -55,13 +55,20 @@ def main():
             st.write(df)
             measurements = [df.iloc[i, :].dropna().tolist() for i in range(min(3, len(df)))]
     else:
-        manual_input = st.text_area(texts[language]["enter_data"], "")
-        if manual_input:
-            try:
-                rows = manual_input.strip().split("\n")
-                measurements = [list(map(float, row.split(",")))[:5] for row in rows[:3]]
-            except ValueError:
-                st.error("Geçersiz giriş! Lütfen her satırda en fazla 5 sayı olacak şekilde virgülle ayırarak girin.")
+        st.write(texts[language]["enter_data"])
+        data_matrix = []
+        for day in range(3):
+            row = []
+            cols = st.columns(5)
+            for col in cols:
+                value = col.text_input(f"Day {day+1}", key=f"{day}-{len(row)}")
+                if value:
+                    try:
+                        row.append(float(value))
+                    except ValueError:
+                        st.error("Geçersiz giriş! Lütfen sayıları doğru formatta girin.")
+            data_matrix.append(row[:5])
+        measurements = [row for row in data_matrix if row]
     
     if measurements:
         all_measurements = [item for sublist in measurements for item in sublist]
