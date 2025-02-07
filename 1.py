@@ -32,25 +32,20 @@ def main():
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            # Yapıştırılan veriyi virgülle ayırarak okuma
-            df = pd.read_csv(io.StringIO(pasted_data), sep=",", header=None)  # Virgülle ayırarak okuma
+            df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
             st.error(f"Error! Please paste data in the correct format. ({str(e)})")
             return
     else:
         return
     
-    # Veri çerçevesindeki sütun sayısını kontrol et
-    num_columns = df.shape[1]
-    column_names = [f"Gün {i+1}" for i in range(num_columns)]  # Dinamik sütun isimleri
-    df.columns = column_names
+    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
     
-    # Verinin en az 2 ölçüm grubu içerdiğini kontrol et
     if len(measurements) > 1:
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
@@ -80,20 +75,19 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # Veri çerçevesi yazdırma
+        # Veri çerçevesini kontrol et ve gerekli sütunları yazdır
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Stil uygulaması
+        # Stilde sadece gerekli sütunlara uygulama
         if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
             results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
             st.dataframe(results_df_styled)
         else:
             st.error("Veri çerçevesinde gerekli sütunlar bulunmuyor.")
         
-        # Hata bar grafiği
         fig, ax = plt.subplots()
-        x_labels = [f"Gün {i+1}" for i in range(num_columns)] + ["Ortalama"]
+        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
         y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
@@ -102,7 +96,6 @@ def main():
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
-        # Günlük ölçüm sonuçları çizimi
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}")
