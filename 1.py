@@ -25,17 +25,21 @@ def main():
     
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
-        st.write("Yüklenen Veri:")
-        st.dataframe(df)
-        measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
     elif pasted_data:
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
-            measurements = [df.iloc[i, :].dropna().tolist() for i in range(len(df))]
-            st.write("Yapıştırılan Veri:")
-            st.dataframe(df)
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+            return
+    else:
+        return
+    
+    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
+    measurements = df.T.values.tolist()
+    
+    st.write("Yapıştırılan Veri:")
+    st.dataframe(df)
     
     if len(measurements) > 1:
         total_values = sum(len(m) for m in measurements)
