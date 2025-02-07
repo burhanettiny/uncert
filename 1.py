@@ -39,6 +39,7 @@ def main():
     else:
         return
     
+    # Veri çerçevesine sütun isimlerini ekleyin
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
@@ -46,6 +47,7 @@ def main():
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
     
+    # Verinin en az 2 ölçüm grubu içerdiğini kontrol et
     if len(measurements) > 1:
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
@@ -75,17 +77,18 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # Veri çerçevesini kontrol et ve gerekli sütunları yazdır
+        # Veri çerçevesi yazdırma
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Stilde sadece gerekli sütunlara uygulama
+        # Stil uygulaması
         if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
             results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
             st.dataframe(results_df_styled)
         else:
             st.error("Veri çerçevesinde gerekli sütunlar bulunmuyor.")
         
+        # Hata bar grafiği
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
@@ -96,6 +99,7 @@ def main():
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
+        # Günlük ölçüm sonuçları çizimi
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}")
