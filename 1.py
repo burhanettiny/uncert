@@ -68,18 +68,18 @@ def main():
         expanded_uncertainty = combined_uncertainty * 2
         relative_expanded_uncertainty = (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
         
-        # Veri çerçevesini oluştururken sütunların doğru adlarla oluşturulduğundan emin olun
+        # Veri çerçevesi oluşturulurken sütun adlarını doğru şekilde atayın
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # Veri çerçevesinin doğru şekilde oluşturulup oluşturulmadığını kontrol et
+        # Veri çerçevesini kontrol et ve gerekli sütunları yazdır
         st.write("Sonuçlar Veri Çerçevesi:")
-        st.dataframe(results_df)  # Veri çerçevesini görsel olarak kontrol et
+        st.dataframe(results_df)
         
-        # Kontrollü stil uygulama
+        # Stilde sadece gerekli sütunlara uygulama
         if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
             results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
             st.dataframe(results_df_styled)
