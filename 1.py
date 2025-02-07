@@ -61,7 +61,7 @@ df = df.apply(pd.to_numeric, errors='coerce')
 # Boş hücreleri temizle (sadece dolu verileri al)
 measurements = [df.iloc[i].dropna().values for i in range(len(df))]
      
-        if st.button(t["calculate"]):
+        if st.button(t["calculate"]):  # Fazladan boşlukları kaldırdık
             avg_values = [calculate_average(day) for day in measurements]
             uncertainty_values = [calculate_standard_uncertainty(day) for day in measurements]
             repeatability_values = [calculate_repeatability(day) for day in measurements]
