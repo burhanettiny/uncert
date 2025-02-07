@@ -15,11 +15,17 @@ def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_
     return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
 
 def main():
-    st.title("Belirsizlik Hesaplama Uygulaması")
+    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
+    texts = {
+        "Türkçe": {"title": "Belirsizlik Hesaplama Uygulaması", "subtitle": "B. Yalçınkaya tarafından geliştirildi", "upload": "Excel dosyanızı yükleyin", "paste": "Verileri buraya yapıştırın", "extra_uncertainty": "Ekstra Belirsizlik Bütçesi", "results": "Sonuçlar", "error_bar": "Hata Bar Grafiği", "daily_measurements": "Günlük Ölçüm Sonuçları"},
+        "English": {"title": "Uncertainty Calculation Application", "subtitle": "Developed by B. Yalçınkaya", "upload": "Upload your Excel file", "paste": "Paste data here", "extra_uncertainty": "Extra Uncertainty Budget", "results": "Results", "error_bar": "Error Bar Graph", "daily_measurements": "Daily Measurement Results"}
+    }
     
-    uploaded_file = st.file_uploader("Excel dosyanızı yükleyin", type=["xlsx", "xls"])
-    pasted_data = st.text_area("Verileri buraya yapıştırın")
-    extra_uncertainty = st.number_input("Ekstra Belirsizlik Bütçesi", min_value=0.0, value=0.0, step=0.01)
+    st.title(texts[language]["title"])
+    st.caption(texts[language]["subtitle"])
+    uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
+    pasted_data = st.text_area(texts[language]["paste"])
+    extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
     
     measurements = []
     
@@ -29,7 +35,7 @@ def main():
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
-            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+            st.error(f"Error! Please paste data in the correct format. ({str(e)})")
             return
     else:
         return
@@ -39,7 +45,7 @@ def main():
     measurements = df.T.values.tolist()
     
     st.write("Yapıştırılan Veri:")
-    st.dataframe(df)
+    st.dataframe(df, use_container_width=True)
     
     if len(measurements) > 1:
         total_values = sum(len(m) for m in measurements)
@@ -69,8 +75,8 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        st.subheader("Sonuçlar")
-        st.table(results_df)
+        st.subheader(texts[language]["results"])
+        st.table(results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'}))
         
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
@@ -79,7 +85,7 @@ def main():
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
         ax.set_ylabel("Değer")
         ax.set_xticklabels(x_labels, rotation=90)
-        ax.set_title("Hata Bar Grafiği")
+        ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
         fig, ax = plt.subplots()
@@ -87,7 +93,7 @@ def main():
             ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}")
         ax.set_xlabel("Ölçüm Numarası")
         ax.set_ylabel("Değer")
-        ax.set_title("Günlük Ölçüm Sonuçları")
+        ax.set_title(texts[language]["daily_measurements"])
         ax.legend()
         st.pyplot(fig)
 
