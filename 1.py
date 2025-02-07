@@ -51,7 +51,7 @@ def main():
         num_groups = len(measurements)
         grand_mean = np.mean([val for group in measurements for val in group])
         
-        ss_between = sum(len(m) * (np.mean(m) - grand_mean) ** 2 for m in measurements)  # Düzeltilen satır
+        ss_between = sum(len(m) * (np.mean(m) - grand_mean) ** 2 for m in measurements)
         ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
         
         df_between = num_groups - 1
@@ -68,11 +68,16 @@ def main():
         expanded_uncertainty = combined_uncertainty * 2
         relative_expanded_uncertainty = (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
         
+        # Veri çerçevesini oluştururken sütunların doğru adlarla oluşturulduğundan emin olun
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
+        
+        # Veri çerçevesinin doğru şekilde oluşturulup oluşturulmadığını kontrol et
+        st.write("Sonuçlar Veri Çerçevesi:")
+        st.dataframe(results_df)  # Veri çerçevesini görsel olarak kontrol et
         
         # Kontrollü stil uygulama
         if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
