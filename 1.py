@@ -19,46 +19,61 @@ def main():
         "Türkçe": {
             "title": "Belirsizlik Hesaplama Uygulaması, B. Yalçınkaya",
             "upload": "Excel dosyanızı yükleyin",
+            "or": "Veya",
+            "manual": "Verileri manuel girin",
+            "enter_data": "Ölçümleri girin (virgülle ayırın)",
             "calculate": "Sonuçları Hesapla",
             "results": "Sonuçlar",
             "average": "Ortalama",
-            "uncertainty": "Belirsizlik"
+            "uncertainty": "Belirsizlik",
+            "repeatability": "Tekrarlanabilirlik"
         },
         "English": {
             "title": "Uncertainty Calculation Application, B. Yalçınkaya",
             "upload": "Upload your Excel file",
+            "or": "Or",
+            "manual": "Enter data manually",
+            "enter_data": "Enter measurements (separated by commas)",
             "calculate": "Calculate Results",
             "results": "Results",
             "average": "Average",
-            "uncertainty": "Uncertainty"
+            "uncertainty": "Uncertainty",
+            "repeatability": "Repeatability"
         }
     }
 
-    # Displaying the title based on selected language
     st.title(texts[language]["title"])
-
-    # File upload section
-    uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
-
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        st.write(df)
-
-        # Assuming the data is in the first column and is numerical
-        measurements = df.iloc[:, 0].dropna()
-
-        # Calculating the results
+    
+    # Kullanıcıdan veri alma yöntemi seçimi
+    data_source = st.radio("", [texts[language]["upload"], texts[language]["manual"]])
+    
+    measurements = []
+    
+    if data_source == texts[language]["upload"]:
+        uploaded_file = st.file_uploader("", type=["xlsx", "xls"])
+        if uploaded_file is not None:
+            df = pd.read_excel(uploaded_file)
+            st.write(df)
+            measurements = df.iloc[:, 0].dropna().tolist()
+    else:
+        manual_input = st.text_area(texts[language]["enter_data"], "")
+        if manual_input:
+            try:
+                measurements = [float(x.strip()) for x in manual_input.split(",")]
+            except ValueError:
+                st.error("Geçersiz giriş! Lütfen sayıları virgülle ayırarak girin.")
+    
+    if measurements:
         avg = calculate_average(measurements)
         uncertainty = calculate_standard_uncertainty(measurements)
         repeatability = calculate_repeatability(measurements)
-
-        # Displaying the results
+        
         st.subheader(texts[language]["results"])
         st.write(f"{texts[language]['average']}: {avg}")
         st.write(f"{texts[language]['uncertainty']}: {uncertainty}")
-        st.write(f"Repeatability: {repeatability}")
-
-        # Plotting the measurements
+        st.write(f"{texts[language]['repeatability']}: {repeatability}")
+        
+        # Veri görselleştirme
         plt.figure(figsize=(8, 6))
         plt.plot(measurements, 'o-', label="Measurements")
         plt.title("Measurement Data")
