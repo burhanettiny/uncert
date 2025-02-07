@@ -74,8 +74,12 @@ def main():
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
-        st.dataframe(results_df_styled)
+        # Kontrollü stil uygulama
+        if 'Değer' in results_df.columns and 'Relative Expanded Uncertainty (%)' in results_df.columns:
+            results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
+            st.dataframe(results_df_styled)
+        else:
+            st.error("Veri çerçevesinde gerekli sütunlar bulunmuyor.")
         
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
