@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
-def calculate_intermediate_precision(ms_within, ms_between):
-    return np.sqrt(ms_between - ms_within) if ms_between > ms_within else float('nan')
+def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
+    return np.sqrt(ms_between - ms_within) / num_measurements_per_day if ms_between > ms_within else float('nan')
 
 def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty):
     return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
@@ -26,6 +26,8 @@ def main():
     pasted_data = st.text_area(texts[language]["paste"])
     extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
     
+    measurements = []
+    
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
@@ -40,6 +42,7 @@ def main():
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
+    num_measurements_per_day = len(df)
     
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
@@ -59,7 +62,7 @@ def main():
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
         repeatability = calculate_repeatability(ms_within)
-        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between)
+        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
         combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
         
         average_value = grand_mean
@@ -69,11 +72,10 @@ def main():
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
-            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"],
-            "Bilimsel Gösterim": ["μ", "σ_r", "σ_IP", "u_c", "U = k × u_c", "U_rel"]
+            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within) / N", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        st.write("Sonuçlar:")
+        st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
         fig, ax = plt.subplots()
