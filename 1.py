@@ -8,17 +8,12 @@ def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
 def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
-    # MS_between > MS_within kontrolü ile hata engelleniyor
-    if ms_between > ms_within:
-        return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
-    return float('nan')
+    return np.sqrt(ms_between - ms_within) / num_measurements_per_day if ms_between > ms_within else float('nan')
 
-def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty):
-    # Doğru formül ile combined uncertainty hesaplanıyor
-    return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
+def calculate_combined_relative_uncertainty(percentage_repeatability, percentage_intermediate_precision, percentage_extra_uncertainty):
+    return np.sqrt(percentage_repeatability**2 + percentage_intermediate_precision**2 + percentage_extra_uncertainty**2)
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
-    # Expanded uncertainty hesaplanıyor ve relatif genişletilmiş belirsizlik hesaplanıyor
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 def main():
@@ -71,15 +66,21 @@ def main():
         
         repeatability = calculate_repeatability(ms_within)
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
-        combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
+        
+        # Yüzdelik belirsizlik değerleri
+        percentage_repeatability = (repeatability / grand_mean) * 100 if grand_mean != 0 else float('nan')
+        percentage_intermediate_precision = (intermediate_precision / grand_mean) * 100 if grand_mean != 0 else float('nan')
+        percentage_extra_uncertainty = (extra_uncertainty / grand_mean) * 100 if grand_mean != 0 else float('nan')
+        
+        combined_relative_uncertainty = calculate_combined_relative_uncertainty(percentage_repeatability, percentage_intermediate_precision, percentage_extra_uncertainty)
         
         average_value = grand_mean
-        expanded_uncertainty = combined_uncertainty * 2
+        expanded_uncertainty = combined_relative_uncertainty * 2
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
+            "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_relative_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
             "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within) / N", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
@@ -89,7 +90,7 @@ def main():
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
-        y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
+        y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_relative_uncertainty]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
         ax.set_ylabel("Değer")
         ax.set_xticklabels(x_labels, rotation=90)
