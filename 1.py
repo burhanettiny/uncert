@@ -21,8 +21,26 @@ def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
 def main():
     language = st.selectbox("Dil / Language", ["Türkçe", "English"])
     texts = {
-        "Türkçe": {"title": "Belirsizlik Hesaplama Uygulaması", "subtitle": "B. Yalçınkaya tarafından geliştirildi", "upload": "Excel dosyanızı yükleyin", "paste": "Verileri buraya yapıştırın", "extra_uncertainty": "Ekstra Belirsizlik Bütçesi", "results": "Sonuçlar", "error_bar": "Hata Bar Grafiği", "daily_measurements": "Günlük Ölçüm Sonuçları"},
-        "English": {"title": "Uncertainty Calculation Application", "subtitle": "Developed by B. Yalçınkaya", "upload": "Upload your Excel file", "paste": "Paste data here", "extra_uncertainty": "Extra Uncertainty Budget", "results": "Results", "error_bar": "Error Bar Graph", "daily_measurements": "Daily Measurement Results"}
+        "Türkçe": {
+            "title": "Belirsizlik Hesaplama Uygulaması",
+            "subtitle": "B. Yalçınkaya tarafından geliştirildi",
+            "upload": "Excel dosyanızı yükleyin",
+            "paste": "Verileri buraya yapıştırın",
+            "extra_uncertainty": "Ekstra Belirsizlik Bütçesi",
+            "results": "Sonuçlar",
+            "error_bar": "Hata Bar Grafiği",
+            "daily_measurements": "Günlük Ölçüm Sonuçları"
+        },
+        "English": {
+            "title": "Uncertainty Calculation Application",
+            "subtitle": "Developed by B. Yalçınkaya",
+            "upload": "Upload your Excel file",
+            "paste": "Paste data here",
+            "extra_uncertainty": "Extra Uncertainty Budget",
+            "results": "Results",
+            "error_bar": "Error Bar Graph",
+            "daily_measurements": "Daily Measurement Results"
+        }
     }
     
     st.title(texts[language]["title"])
@@ -74,18 +92,42 @@ def main():
         expanded_uncertainty = combined_uncertainty * 2
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
 
-        # Relative Repeatability ve Relative Intermediate Precision hesaplaması
+        # Relative Repeatability ve Relative Intermediate Precision hesaplaması (virgülden sonra 4 basamak)
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
         
-        # Relative Extra Uncertainty yüzde hesaplaması
+        # Relative Extra Uncertainty yüzde olarak hesaplanıyor
         relative_extra_uncertainty = (extra_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
         # Sonuçlar Veri Çerçevesi
         results_df = pd.DataFrame({
-            "Parametre": ["Tekrarlanabilirlik", "Intermediate Precision", "Ekstra Belirsizlik Bütçesi", "Combined Relative Uncertainty", "Relative Repeatability", "Relative Intermediate Precision", "Relative Extra Uncertainty"],
-            "Değer": [f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{extra_uncertainty:.1f}", f"{combined_uncertainty:.1f}", f"{relative_repeatability:.1f}", f"{relative_intermediate_precision:.1f}", f"{relative_extra_uncertainty:.1f}"],
-            "Formül": ["√(MS_within)", "√(MS_between - MS_within) / N", "Extra Uncertainty", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "(Repeatability / Mean)", "(Intermediate Precision / Mean)", "(Extra Uncertainty / Mean) × 100"]
+            "Parametre": [
+                "Tekrarlanabilirlik",
+                "Intermediate Precision",
+                "Ekstra Belirsizlik Bütçesi",
+                "Combined Relative Uncertainty",
+                "Relative Repeatability",
+                "Relative Intermediate Precision",
+                "Relative Extra Uncertainty"
+            ],
+            "Değer": [
+                f"{repeatability:.1f}",
+                f"{intermediate_precision:.1f}",
+                f"{extra_uncertainty:.1f}",
+                f"{combined_uncertainty:.1f}",
+                f"{relative_repeatability:.4f}",
+                f"{relative_intermediate_precision:.4f}",
+                f"{relative_extra_uncertainty:.4f}"
+            ],
+            "Formül": [
+                "√(MS_within)",
+                "√((MS_between - MS_within) / N)",
+                "Extra Uncertainty",
+                "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)",
+                "(Repeatability / Mean)",
+                "(Intermediate Precision / Mean)",
+                "(Extra Uncertainty / Mean) × 100"
+            ]
         })
         
         # Ortalama, Expanded Uncertainty ve Relative Expanded Uncertainty'yi eklemek
@@ -95,7 +137,7 @@ def main():
             "Formül": ["mean(X)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # Yeni satırı sonuçlar veri çerçevesine ekleyelim
+        # Yeni satırları sonuçlar veri çerçevesine ekleyelim
         results_df = pd.concat([results_df, additional_row], ignore_index=True)
         
         st.write("Sonuçlar Veri Çerçevesi:")
