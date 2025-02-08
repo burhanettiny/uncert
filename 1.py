@@ -81,9 +81,9 @@ def main():
 
         # Sonuçlar Veri Çerçevesi
         results_df = pd.DataFrame({
-            "Parametre": ["Tekrarlanabilirlik", "Intermediate Precision", "Ekstra Belirsizlik Bütçesi", "Combined Relative Uncertainty", "Relative Repeatability (%)", "Relative Intermediate Precision (%)", "Relative Extra Uncertainty (%)"],
-            "Değer": [f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{extra_uncertainty:.1f}", f"{combined_uncertainty:.1f}", f"{relative_repeatability*100:.1f}", f"{relative_intermediate_precision*100:.1f}", f"{relative_extra_uncertainty*100:.1f}"],
-            "Formül": ["√(MS_within)", "√(MS_between - MS_within) / N", "Extra Uncertainty", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "(Repeatability / Mean) × 100", "(Intermediate Precision / Mean) × 100", "(Extra Uncertainty / Mean) × 100"]
+            "Parametre": ["Tekrarlanabilirlik", "Intermediate Precision", "Ekstra Belirsizlik Bütçesi", "Combined Relative Uncertainty", "Relative Repeatability", "Relative Intermediate Precision", "Relative Extra Uncertainty"],
+            "Değer": [f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{extra_uncertainty:.1f}", f"{combined_uncertainty:.1f}", f"{relative_repeatability:.1f}", f"{relative_intermediate_precision:.1f}", f"{relative_extra_uncertainty:.1f}"],
+            "Formül": ["√(MS_within)", "√(MS_between - MS_within) / N", "Extra Uncertainty", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "(Repeatability / Mean)", "(Intermediate Precision / Mean)", "(Extra Uncertainty / Mean)"]
         })
         
         # Ortalama, Expanded Uncertainty ve Relative Expanded Uncertainty'yi eklemek
