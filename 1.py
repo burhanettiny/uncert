@@ -24,7 +24,7 @@ def main():
             "subtitle": "B. Yalçınkaya tarafından geliştirildi",
             "upload": "Excel dosyanızı yükleyin",
             "paste": "Verileri buraya yapıştırın",
-            "extra_uncertainty": "Ekstra Belirsizlik Bütçesi",
+            "extra_uncertainty": "Ek Belirsizlik Bütçesi",
             "results": "Sonuçlar",
             "error_bar": "Hata Bar Grafiği",
             "daily_measurements": "Günlük Ölçüm Sonuçları"
@@ -47,10 +47,10 @@ def main():
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Ekstra Belirsizlik Bütçesi sayısal değeri
+    # Ek Belirsizlik Bütçesi sayısal değeri
     extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
-    # Kullanıcının tanımlayabileceği ekstra belirsizlik bütçesi başlığı (etiketi)
-    custom_extra_uncertainty_label = st.text_input("Ekstra Belirsizlik Bütçesi Etiketi", value="Ekstra Belirsizlik Bütçesi")
+    # Kullanıcının tanımlayabileceği Ek Belirsizlik Bütçesi Etiketi (varsayılan "Ek Belirsizlik Bütçesi")
+    custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
     
     measurements = []
     
@@ -60,7 +60,7 @@ def main():
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
-            st.error(f"Error! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             return
     else:
         return
@@ -96,7 +96,7 @@ def main():
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        # Relative Extra Uncertainty: Kullanıcının girdiği değerin 100'e bölünmesi
+        # Relative Ek Belirsizlik: Girdi değeri 100'e bölünerek veriliyor.
         relative_extra_uncertainty = extra_uncertainty / 100
         
         # Combined Relative Uncertainty (4 ondalık basamakla):
@@ -110,7 +110,7 @@ def main():
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
         
         # Relative Expanded Uncertainty (%) = (Expanded Uncertainty / Mean) * 100 
-        # Bu, 2 * combined_relative_uncertainty * 100 olarak da elde edilir.
+        # (veya 2 * combined_relative_uncertainty * 100)
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
         # Sonuçlar tablosu:
@@ -118,11 +118,11 @@ def main():
             "Parametre": [
                 "Tekrarlanabilirlik",
                 "Intermediate Precision",
-                custom_extra_uncertainty_label,
+                custom_extra_uncertainty_label,  # Bu satır, Ek Belirsizlik Bütçesi değerinin üstünde gösterilecek
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
                 "Relative Intermediate Precision",
-                "Relative Extra Uncertainty"
+                "Relative Ek Belirsizlik"
             ],
             "Değer": [
                 f"{repeatability:.1f}",
@@ -137,7 +137,7 @@ def main():
                 "√(MS_within)",
                 "√((MS_between - MS_within) / N)",
                 f"({custom_extra_uncertainty_label} değeri)",
-                "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Extra Uncertainty)²)",
+                "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Ek Belirsizlik)²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
                 f"({custom_extra_uncertainty_label} / 100)"
