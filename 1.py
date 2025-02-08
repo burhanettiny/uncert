@@ -43,54 +43,27 @@ def main():
     st.title(texts[language]["title"])
     st.caption(texts[language]["subtitle"])
     
-    # Dosya yükleme veya verilerin yapıştırılması:
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Eğer veriler yapıştırılmışsa, kullanıcıdan ondalık ve sütun ayırıcı seçeneklerini al:
-    if pasted_data:
-        decimal_separator = st.selectbox("Ondalık Ayırıcı", [".", ","])
-        col_sep_option = st.selectbox("Sütun Ayırıcı", [",", ";", "boşluk", "\t"])
-        sep_val = r'\s+' if col_sep_option == "boşluk" else col_sep_option
-    else:
-        decimal_separator = "."
-        sep_val = None
-
     # Önce Ek Belirsizlik Bütçesi Etiketi girilsin:
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
-    # Ardından, bu etiket kullanılarak Ek Belirsizlik Bütçesi değeri girilsin:
+    # Bu etiket başlığı ile Ek Belirsizlik Bütçesi değeri girilsin:
     extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
     
     measurements = []
     
-    # Dosya yüklenmişse Excel, yapıştırılmışsa CSV olarak okuyalım:
     if uploaded_file is not None:
-        try:
-            df = pd.read_excel(uploaded_file, header=None)
-        except Exception as e:
-            st.error(f"Excel dosyası okunurken hata oluştu: {e}")
-            return
+        df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            df = pd.read_csv(io.StringIO(pasted_data), sep=sep_val, engine='python', decimal=decimal_separator)
+            df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
-            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({e})")
+            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             return
     else:
         return
     
-    # Veri çerçevesinin ilk birkaç satırını kontrol et:
-    st.write("Yapıştırılan Veri veya Yüklenen Excel Dosyası:")
-    st.dataframe(df.head())
-    
-    # Veri sayısına esneklik ekleyelim, en az 3 sütun olabilir:
-    if df.shape[1] < 3:
-        st.warning("Veri sadece 3 sütun değil. Ancak veriye esnek yaklaşılacaktır.")
-    num_columns = df.shape[1]
-    
-    # Eğer veride 3 sütun olmasa da ilk 3 sütunu kullan:
-    df = df.iloc[:, :3]  # Sadece ilk 3 sütunu kullan
-
     # DataFrame düzenlemesi:
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
@@ -123,16 +96,20 @@ def main():
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
         relative_extra_uncertainty = extra_uncertainty / 100  # Ek Belirsizlik Bütçesi değeri 100'e bölünür.
         
+        # Combined Relative Uncertainty:
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
             relative_intermediate_precision**2 +
             relative_extra_uncertainty**2
         )
         
+        # Expanded Uncertainty (k=2):
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
+        
+        # Relative Expanded Uncertainty (%):
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
-        # Sonuçlar tablosu (tüm sayısal değerler 4 ondalık basamakla):
+        # Sonuçlar tablosu (tüm değerler noktadan sonra 4 basamak):
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
@@ -182,7 +159,7 @@ def main():
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Hata Bar Grafiği
+        # Hata Bar Grafiği:
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
@@ -193,7 +170,7 @@ def main():
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
-        # Günlük Ölçüm Grafiği
+        # Günlük Ölçüm Grafiği:
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
