@@ -13,7 +13,6 @@ def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per
     return float('nan')
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
-    # (Expanded Uncertainty / Mean) * 100
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 def main():
@@ -47,10 +46,10 @@ def main():
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Ek Belirsizlik Bütçesi sayısal değeri
-    extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
-    # Kullanıcının tanımlayabileceği Ek Belirsizlik Bütçesi Etiketi (varsayılan "Ek Belirsizlik Bütçesi")
+    # Önce Ek Belirsizlik Bütçesi Etiketi girilsin:
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
+    # Bu etiket başlığı ile Ek Belirsizlik Bütçesi değeri girilsin:
+    extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
     
     measurements = []
     
@@ -75,7 +74,6 @@ def main():
     st.dataframe(df, use_container_width=True)
     
     if len(measurements) > 1:
-        # Orijinal hesaplamalar:
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
         average_value = np.mean([val for group in measurements for val in group])
@@ -96,38 +94,36 @@ def main():
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        # Relative Ek Belirsizlik: Girdi değeri 100'e bölünerek veriliyor.
-        relative_extra_uncertainty = extra_uncertainty / 100
+        relative_extra_uncertainty = extra_uncertainty / 100  # Ek Belirsizlik Bütçesi değeri 100'e bölünür.
         
-        # Combined Relative Uncertainty (4 ondalık basamakla):
+        # Combined Relative Uncertainty:
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
             relative_intermediate_precision**2 +
             relative_extra_uncertainty**2
         )
         
-        # Expanded Uncertainty (k=2, orijinal birimlerde):
+        # Expanded Uncertainty (k=2):
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
         
-        # Relative Expanded Uncertainty (%) = (Expanded Uncertainty / Mean) * 100 
-        # (veya 2 * combined_relative_uncertainty * 100)
+        # Relative Expanded Uncertainty (%):
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
-        # Sonuçlar tablosu:
+        # Sonuçlar tablosu (tüm değerler noktadan sonra 4 basamak):
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
                 "Intermediate Precision",
-                custom_extra_uncertainty_label,  # Bu satır, Ek Belirsizlik Bütçesi değerinin üstünde gösterilecek
+                custom_extra_uncertainty_label,
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
                 "Relative Intermediate Precision",
                 "Relative Ek Belirsizlik"
             ],
             "Değer": [
-                f"{repeatability:.1f}",
-                f"{intermediate_precision:.1f}",
-                f"{extra_uncertainty:.1f}",
+                f"{repeatability:.4f}",
+                f"{intermediate_precision:.4f}",
+                f"{extra_uncertainty:.4f}",
                 f"{combined_relative_uncertainty:.4f}",
                 f"{relative_repeatability:.4f}",
                 f"{relative_intermediate_precision:.4f}",
@@ -144,13 +140,12 @@ def main():
             ]
         })
         
-        # Alt satırlar: Ortalama Değer, Expanded Uncertainty (k=2) ve Relative Expanded Uncertainty (%)
         additional_row = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [
-                f"{average_value:.1f}",
-                f"{expanded_uncertainty:.1f}",
-                f"{relative_expanded_uncertainty:.1f}"
+                f"{average_value:.4f}",
+                f"{expanded_uncertainty:.4f}",
+                f"{relative_expanded_uncertainty:.4f}"
             ],
             "Formül": [
                 "mean(X)",
