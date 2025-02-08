@@ -1,6 +1,6 @@
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file, header=None)
-burhanettin pasted_data:
+elif pasted_data:
     try:
         # Replace commas with periods for decimal values
         pasted_data = pasted_data.replace(',', '.')
