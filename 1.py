@@ -76,6 +76,26 @@ def main():
         
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
+        
+        fig, ax = plt.subplots()
+        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
+        x_values = [np.mean(day) for day in measurements] + [average_value]
+        y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
+        ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+        ax.set_ylabel("Değer")
+        ax.set_xticklabels(x_labels, rotation=90)
+        ax.set_title(texts[language]["error_bar"])
+        st.pyplot(fig)
+        
+        fig, ax = plt.subplots()
+        colors = ['blue', 'green', 'red']
+        for i, group in enumerate(measurements):
+            ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}", color=colors[i % len(colors)])
+        ax.set_xlabel("Ölçüm Numarası")
+        ax.set_ylabel("Değer")
+        ax.set_title(texts[language]["daily_measurements"])
+        ax.legend()
+        st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
