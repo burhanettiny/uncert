@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import streamlit as st
 import pandas as pd
 import io
@@ -25,8 +25,6 @@ def main():
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
-    
-    measurements = []
     
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
@@ -71,10 +69,11 @@ def main():
         results_df = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
-            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
+            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within)", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"],
+            "Bilimsel Gösterim": ["μ", "σ_r", "σ_IP", "u_c", "U = k × u_c", "U_rel"]
         })
         
-        st.write("Sonuçlar Veri Çerçevesi:")
+        st.write("Sonuçlar:")
         st.dataframe(results_df)
         
         fig, ax = plt.subplots()
@@ -83,15 +82,14 @@ def main():
         y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
         ax.set_ylabel("Değer")
+        ax.set_xticklabels(x_labels, rotation=90)
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
         fig, ax = plt.subplots()
-        num_measurements = len(df)
-        x_ticks = [f"{i+1}. Ölçüm" for i in range(num_measurements)]
         for i, group in enumerate(measurements):
-            ax.plot(x_ticks, group, marker='o', linestyle='-', label=f"Gün {i+1}")
-        ax.set_xlabel("Ölçüm Numarası")
+            ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
+        ax.set_xlabel("Ölçüm Sayısı")
         ax.set_ylabel("Değer")
         ax.set_title(texts[language]["daily_measurements"])
         ax.legend()
