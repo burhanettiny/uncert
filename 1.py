@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import streamlit as st
 import pandas as pd
 import io
@@ -9,10 +9,7 @@ def calculate_repeatability(ms_within):
 
 def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
     if ms_between > ms_within:
-        return np.sqrt(((ms_within**2 * (num_measurements_per_day - 1)) + 
-                         (ms_between**2 * (num_measurements_per_day - 1)) + 
-                         (ms_within**2 * (num_measurements_per_day - 1))) / 
-                        (num_measurements_per_day - 1 + num_measurements_per_day - 1 + num_measurements_per_day - 1)) 
+        return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
     return float('nan')
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
@@ -71,8 +68,13 @@ def main():
     else:
         st.stop()  # Stop if neither a file nor pasted data is provided
     
-    # DataFrame düzenlemesi:
-    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    # Check the number of columns in the DataFrame and assign column names only if it matches 3
+    if df.shape[1] == 3:
+        df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    else:
+        st.error("Veri çerçevesinde beklenen üç sütun bulunmuyor. Lütfen verinizi kontrol edin.")
+        st.stop()  # Stop execution if the columns don't match
+    
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     num_measurements_per_day = len(df)
@@ -120,7 +122,7 @@ def main():
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
-                "Intermediate Precision" + (" *" if ms_between > ms_within else ""),
+                "Intermediate Precision",
                 custom_extra_uncertainty_label,
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
@@ -129,7 +131,7 @@ def main():
             ],
             "Değer": [
                 f"{repeatability:.4f}",
-                f"{intermediate_precision:.4f}" if ms_between > ms_within else "N/A",
+                f"{intermediate_precision:.4f}",
                 f"{extra_uncertainty:.4f}",
                 f"{combined_relative_uncertainty:.4f}",
                 f"{relative_repeatability:.4f}",
@@ -186,10 +188,6 @@ def main():
         ax.set_title(texts[language]["daily_measurements"])
         ax.legend()
         st.pyplot(fig)
-        
-        # Ekstra açıklama:
-        if ms_between > ms_within:
-            st.write("Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri 'urepro' hesaplanarak belirlenmiştir.")
 
 if __name__ == "__main__":
     main()
