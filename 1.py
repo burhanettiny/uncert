@@ -1,4 +1,6 @@
-elif pasted_data:
+if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file, header=None)
+burhanettin pasted_data:
     try:
         # Replace commas with periods for decimal values
         pasted_data = pasted_data.replace(',', '.')
@@ -8,3 +10,5 @@ elif pasted_data:
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         return
+else:
+    return
