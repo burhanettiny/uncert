@@ -53,7 +53,6 @@ def main():
         col_sep_option = st.selectbox("Sütun Ayırıcı", [",", ";", "boşluk", "\t"])
         sep_val = r'\s+' if col_sep_option == "boşluk" else col_sep_option
     else:
-        # Dosya yüklenmişse, Excel dosyaları için sep ayarına gerek yok.
         decimal_separator = "."
         sep_val = None
 
@@ -64,18 +63,28 @@ def main():
     
     measurements = []
     
+    # Dosya yüklenmişse Excel, yapıştırılmışsa CSV olarak okuyalım:
     if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, header=None)
+        try:
+            df = pd.read_excel(uploaded_file, header=None)
+        except Exception as e:
+            st.error(f"Excel dosyası okunurken hata oluştu: {e}")
+            return
     elif pasted_data:
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep=sep_val, engine='python', decimal=decimal_separator)
         except Exception as e:
-            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({e})")
             return
     else:
         return
     
-    # DataFrame düzenlemesi (örneğin 3 sütunlu veriler için):
+    # Sütun sayısını kontrol edelim (örneğin, 3 sütun bekleniyor):
+    if df.shape[1] != 3:
+        st.error(f"Veride 3 sütun olması bekleniyor, ancak {df.shape[1]} sütun bulundu. Lütfen verinizi kontrol edin.")
+        return
+    
+    # DataFrame düzenlemesi:
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
@@ -105,8 +114,7 @@ def main():
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        # Ek Belirsizlik Bütçesi değeri 100'e bölünerek relative değer elde ediliyor.
-        relative_extra_uncertainty = extra_uncertainty / 100
+        relative_extra_uncertainty = extra_uncertainty / 100  # Ek Belirsizlik Bütçesi değeri 100'e bölünür.
         
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
