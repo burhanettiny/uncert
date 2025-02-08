@@ -9,7 +9,6 @@ def calculate_repeatability(ms_within):
 
 def calculate_intermediate_precision(ms_within, ms_between, measurements, num_measurements_per_day):
     if ms_within > ms_between:
-        # Yeni formüle göre hesaplama
         sum_weighted_variances = sum(
             (np.std(m, ddof=1) ** 2) * (len(m) - 1) for m in measurements
         )
@@ -17,7 +16,7 @@ def calculate_intermediate_precision(ms_within, ms_between, measurements, num_me
         
         if sum_degrees_freedom > 0:
             urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom) / np.sqrt(sum_degrees_freedom)
-            return urepro, True  # İşaretli olarak döndür
+            return urepro, True
         else:
             return float('nan'), False
     else:
@@ -38,7 +37,11 @@ def main():
     else:
         st.stop()
     
-    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    if df.shape[1] < 2:
+        st.error("Yetersiz veri sütunu! Lütfen en az iki sütun içeren veri yükleyin.")
+        st.stop()
+    
+    df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     num_measurements_per_day = len(df)
