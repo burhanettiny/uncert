@@ -43,9 +43,14 @@ def main():
     
     st.title(texts[language]["title"])
     st.caption(texts[language]["subtitle"])
+    
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
+    
+    # Ekstra Belirsizlik Bütçesi sayısal değeri
     extra_uncertainty = st.number_input(texts[language]["extra_uncertainty"], min_value=0.0, value=0.0, step=0.01)
+    # Kullanıcının tanımlayabileceği ekstra belirsizlik bütçesi başlığı (etiketi)
+    custom_extra_uncertainty_label = st.text_input("Ekstra Belirsizlik Bütçesi Etiketi", value="Ekstra Belirsizlik Bütçesi")
     
     measurements = []
     
@@ -55,12 +60,12 @@ def main():
         try:
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
-            st.error(f"Error! Please paste data in the correct format. ({str(e)})")
+            st.error(f"Error! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             return
     else:
         return
     
-    # Veri çerçevesi düzenlemesi
+    # DataFrame düzenlemesi:
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
@@ -70,7 +75,7 @@ def main():
     st.dataframe(df, use_container_width=True)
     
     if len(measurements) > 1:
-        # Orijinal hesaplamalar (ortalama, MS_between, MS_within vs.)
+        # Orijinal hesaplamalar:
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
         average_value = np.mean([val for group in measurements for val in group])
@@ -84,28 +89,28 @@ def main():
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
-        # Orijinal parametreler
+        # Orijinal parametreler:
         repeatability = calculate_repeatability(ms_within)
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
         
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        relative_extra_uncertainty = extra_uncertainty / 100  # Ekstra Belirsizlik Bütçesi 100'e bölünüyor
+        # Relative Extra Uncertainty: Kullanıcının girdiği değerin 100'e bölünmesi
+        relative_extra_uncertainty = extra_uncertainty / 100
         
-        # Combined Relative Uncertainty (4 ondalık basamakla)
+        # Combined Relative Uncertainty (4 ondalık basamakla):
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
             relative_intermediate_precision**2 +
             relative_extra_uncertainty**2
         )
         
-        # Expanded Uncertainty (orijinal birimlerde, k=2): 
-        # = Combined Relative Uncertainty * Mean * 2
+        # Expanded Uncertainty (k=2, orijinal birimlerde):
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
         
         # Relative Expanded Uncertainty (%) = (Expanded Uncertainty / Mean) * 100 
-        # Bu, 2 * combined_relative_uncertainty * 100 olarak da yazılabilir.
+        # Bu, 2 * combined_relative_uncertainty * 100 olarak da elde edilir.
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
         # Sonuçlar tablosu:
@@ -113,7 +118,7 @@ def main():
             "Parametre": [
                 "Tekrarlanabilirlik",
                 "Intermediate Precision",
-                "Ekstra Belirsizlik Bütçesi",
+                custom_extra_uncertainty_label,
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
                 "Relative Intermediate Precision",
@@ -131,15 +136,15 @@ def main():
             "Formül": [
                 "√(MS_within)",
                 "√((MS_between - MS_within) / N)",
-                "Ekstra Belirsizlik Bütçesi",
+                f"({custom_extra_uncertainty_label} değeri)",
                 "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Extra Uncertainty)²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
-                "(Ekstra Belirsizlik Bütçesi / 100)"
+                f"({custom_extra_uncertainty_label} / 100)"
             ]
         })
         
-        # Alt satır: Ortalama Değer, Expanded Uncertainty (k=2) ve Relative Expanded Uncertainty (%)
+        # Alt satırlar: Ortalama Değer, Expanded Uncertainty (k=2) ve Relative Expanded Uncertainty (%)
         additional_row = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
             "Değer": [
@@ -159,7 +164,7 @@ def main():
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Hata Bar Grafiği
+        # Hata Bar Grafiği:
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
@@ -170,7 +175,7 @@ def main():
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
-        # Günlük Ölçüm Grafiği
+        # Günlük Ölçüm Grafiği:
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
