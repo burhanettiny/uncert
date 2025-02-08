@@ -96,8 +96,8 @@ def main():
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
         
-        # Relative Extra Uncertainty yüzde olarak hesaplanıyor
-        relative_extra_uncertainty = (extra_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
+        # Relative Extra Uncertainty: Ekstra Belirsizlik Bütçesi değerinin 100'e bölünmesi
+        relative_extra_uncertainty = extra_uncertainty / 100
 
         # Sonuçlar Veri Çerçevesi
         results_df = pd.DataFrame({
@@ -126,7 +126,7 @@ def main():
                 "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
-                "(Extra Uncertainty / Mean) × 100"
+                "(Ekstra Belirsizlik Bütçesi / 100)"
             ]
         })
         
