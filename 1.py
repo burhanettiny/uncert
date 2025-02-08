@@ -83,14 +83,14 @@ def main():
         y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
         ax.set_ylabel("Değer")
-        ax.set_xticklabels(x_labels, rotation=90)
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
         fig, ax = plt.subplots()
-        colors = ['blue', 'green', 'red']
+        num_measurements = len(df)
+        x_ticks = [f"{i+1}. Ölçüm" for i in range(num_measurements)]
         for i, group in enumerate(measurements):
-            ax.plot(group, marker='o', linestyle='-', label=f"Gün {i+1}", color=colors[i % len(colors)])
+            ax.plot(x_ticks, group, marker='o', linestyle='-', label=f"Gün {i+1}")
         ax.set_xlabel("Ölçüm Numarası")
         ax.set_ylabel("Değer")
         ax.set_title(texts[language]["daily_measurements"])
