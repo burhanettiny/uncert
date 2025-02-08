@@ -12,9 +12,6 @@ def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per
         return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
     return float('nan')
 
-def calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty):
-    return np.sqrt(repeatability**2 + intermediate_precision**2 + extra_uncertainty**2)
-
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
@@ -71,6 +68,7 @@ def main():
     st.dataframe(df, use_container_width=True)
     
     if len(measurements) > 1:
+        # Hesaplamalar:
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
         grand_mean = np.mean([val for group in measurements for val in group])
@@ -84,22 +82,37 @@ def main():
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
+        # Hesaplanan orijinal parametreler:
         repeatability = calculate_repeatability(ms_within)
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
-        combined_uncertainty = calculate_combined_uncertainty(repeatability, intermediate_precision, extra_uncertainty)
         
         average_value = grand_mean
-        expanded_uncertainty = combined_uncertainty * 2
-        relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
-
-        # Relative Repeatability ve Relative Intermediate Precision hesaplaması (virgülden sonra 4 basamak)
+        # Expanded Uncertainty hesaplaması (Combined Uncertainty * 2 formülü önceki hesaplamalara göre yapılabilir)
+        # Fakat buradaki Combined Uncertainty artık relative parametrelerden hesaplanacaktır.
+        # Öncelikle relative değerleri hesaplayalım:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        
-        # Relative Extra Uncertainty: Ekstra Belirsizlik Bütçesi değerinin 100'e bölünmesi
+        # Relative Extra Uncertainty: Ekstra Belirsizlik Bütçesi değeri 100'e bölünerek veriliyor:
         relative_extra_uncertainty = extra_uncertainty / 100
-
-        # Sonuçlar Veri Çerçevesi
+        
+        # İstenen formüle göre Combined Relative Uncertainty:
+        combined_relative_uncertainty = np.sqrt(relative_repeatability**2 +
+                                                relative_intermediate_precision**2 +
+                                                relative_extra_uncertainty**2)
+        
+        # Expanded Uncertainty hesaplaması (orijinal değer üzerinden) : 
+        # Önceki kodda combined_uncertainty = sqrt(Repeatability² + Intermediate Precision² + Extra Uncertainty²) idi.
+        # Ancak bu hesaplama, orijinal değerlerle yapılıyordu. Eğer bu değeri de güncellemek isterseniz ayrı bir düzenleme gerekir.
+        # Şimdilik Expanded Uncertainty, orijinal Combined Uncertainty yerine hesaplanmamıştır.
+        # Biz burada sadece relative değerler üzerinden Combined Relative Uncertainty hesapladık.
+        expanded_uncertainty = None  # İsteğe bağlı orijinal hesaplama yapılabilir.
+        relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(
+            (combined_relative_uncertainty * average_value), average_value
+        )
+        # Not: Üst satırda, Combined Relative Uncertainty'nin orijinal değere dönüşümüyle expanded uncertainty hesaplanıyor.
+        # Bu hesaplama isteğe göre düzenlenebilir.
+        
+        # Sonuçlar Veri Çerçevesi:
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
@@ -114,7 +127,7 @@ def main():
                 f"{repeatability:.1f}",
                 f"{intermediate_precision:.1f}",
                 f"{extra_uncertainty:.1f}",
-                f"{combined_uncertainty:.1f}",
+                f"{combined_relative_uncertainty:.4f}",
                 f"{relative_repeatability:.4f}",
                 f"{relative_intermediate_precision:.4f}",
                 f"{relative_extra_uncertainty:.4f}"
@@ -123,36 +136,43 @@ def main():
                 "√(MS_within)",
                 "√((MS_between - MS_within) / N)",
                 "Extra Uncertainty",
-                "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)",
+                "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Extra Uncertainty)²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
                 "(Ekstra Belirsizlik Bütçesi / 100)"
             ]
         })
         
-        # Ortalama, Expanded Uncertainty ve Relative Expanded Uncertainty'yi eklemek
+        # Ortalama, Expanded Uncertainty ve Relative Expanded Uncertainty'yi eklemek (varsa)
         additional_row = pd.DataFrame({
             "Parametre": ["Ortalama Değer", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [f"{average_value:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
+            "Değer": [
+                f"{average_value:.1f}", 
+                f"{(combined_relative_uncertainty * average_value * 2):.1f}",
+                f"{relative_expanded_uncertainty:.1f}"
+            ],
             "Formül": ["mean(X)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
         })
         
-        # Yeni satırları sonuçlar veri çerçevesine ekleyelim
         results_df = pd.concat([results_df, additional_row], ignore_index=True)
         
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
+        # Hata Bar Grafiği
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
-        y_errors = [np.std(day, ddof=1) for day in measurements] + [combined_uncertainty]
+        # Burada orijinal combined_uncertainty yerine bir hata değeri kullanılabilir.
+        # Şimdilik hata çubukları için standart sapmalar kullanılıyor.
+        y_errors = [np.std(day, ddof=1) for day in measurements] + [0]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
         ax.set_ylabel("Değer")
         ax.set_xticklabels(x_labels, rotation=90)
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
+        # Günlük Ölçüm Grafiği
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
