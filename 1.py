@@ -43,16 +43,20 @@ def main():
     st.title(texts[language]["title"])
     st.caption(texts[language]["subtitle"])
     
-    # Kullanıcı, dosya yükleyebilir veya verileri yapıştırabilir.
+    # Dosya yükleme veya verilerin yapıştırılması:
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Yapıştırılan veri varsa, kullanıcıdan ondalık ayırıcı seçimi alınsın.
+    # Eğer veriler yapıştırılmışsa, kullanıcıdan ondalık ve sütun ayırıcı seçeneklerini al:
     if pasted_data:
         decimal_separator = st.selectbox("Ondalık Ayırıcı", [".", ","])
+        col_sep_option = st.selectbox("Sütun Ayırıcı", [",", ";", "boşluk", "\t"])
+        sep_val = r'\s+' if col_sep_option == "boşluk" else col_sep_option
     else:
+        # Dosya yüklenmişse, Excel dosyaları için sep ayarına gerek yok.
         decimal_separator = "."
-    
+        sep_val = None
+
     # Önce Ek Belirsizlik Bütçesi Etiketi girilsin:
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
     # Ardından, bu etiket kullanılarak Ek Belirsizlik Bütçesi değeri girilsin:
@@ -64,15 +68,14 @@ def main():
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            # Otomatik ayırıcı tespiti için sep=None kullanılıyor; kullanıcı tarafından seçilen ondalık ayırıcı decimal parametresine veriliyor.
-            df = pd.read_csv(io.StringIO(pasted_data), sep=None, engine='python', decimal=decimal_separator)
+            df = pd.read_csv(io.StringIO(pasted_data), sep=sep_val, engine='python', decimal=decimal_separator)
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             return
     else:
         return
     
-    # DataFrame düzenlemesi:
+    # DataFrame düzenlemesi (örneğin 3 sütunlu veriler için):
     df.columns = ["1. Gün", "2. Gün", "3. Gün"]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
@@ -114,7 +117,7 @@ def main():
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
-        # Sonuçlar tablosu; tüm sayısal değerler noktadan sonra 4 basamakla gösteriliyor.
+        # Sonuçlar tablosu (tüm sayısal değerler 4 ondalık basamakla):
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
