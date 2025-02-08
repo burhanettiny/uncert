@@ -5,6 +5,7 @@ import io
 import matplotlib.pyplot as plt
 
 def calculate_repeatability(ms_within):
+    # MS_within negatifse hatalı değer döndürme
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
 def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
@@ -13,6 +14,7 @@ def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per
     return float('nan')
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
+    # Eğer ortalama değer sıfırsa, yüzde belirsizliği hesaplama
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 def main():
@@ -57,19 +59,24 @@ def main():
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            # Replace commas with periods for decimal values
+            # Virgülleri noktalara çevir
             pasted_data = pasted_data.replace(',', '.')
             
-            # Try reading the data as space-separated values
+            # Veriyi alanı ayırarak oku
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
-            st.stop()  # Use st.stop() to stop execution if there's an error
+            st.stop()  # Hata durumunda çalışmayı durdur
     else:
-        st.stop()  # Stop if neither a file nor pasted data is provided
+        st.stop()  # Eğer dosya ya da veriler yüklenmediyse çalışmayı durdur
     
+    # Veri çerçevesinde eksik değerleri kontrol et
+    if df.isnull().values.any():
+        st.warning("Verinizde eksik (NaN) değerler var. Lütfen verilerinizi kontrol edin.")
+        df = df.dropna()  # NaN değerleri sileriz
+
     # DataFrame düzenlemesi:
-    df.columns = [f"Gün {i+1}" for i in range(df.shape[1])]  # Dynamically assign columns based on number of columns
+    df.columns = [f"Gün {i+1}" for i in range(df.shape[1])]  # Dinamik olarak sütun isimleri
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     num_measurements_per_day = len(df)
