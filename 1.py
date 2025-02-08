@@ -43,12 +43,19 @@ def main():
     st.title(texts[language]["title"])
     st.caption(texts[language]["subtitle"])
     
+    # Kullanıcı, dosya yükleyebilir veya verileri yapıştırabilir.
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
+    # Yapıştırılan veri varsa, kullanıcıdan ondalık ayırıcı seçimi alınsın.
+    if pasted_data:
+        decimal_separator = st.selectbox("Ondalık Ayırıcı", [".", ","])
+    else:
+        decimal_separator = "."
+    
     # Önce Ek Belirsizlik Bütçesi Etiketi girilsin:
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
-    # Bu etiket başlığı ile Ek Belirsizlik Bütçesi değeri girilsin:
+    # Ardından, bu etiket kullanılarak Ek Belirsizlik Bütçesi değeri girilsin:
     extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
     
     measurements = []
@@ -57,7 +64,8 @@ def main():
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
+            # Otomatik ayırıcı tespiti için sep=None kullanılıyor; kullanıcı tarafından seçilen ondalık ayırıcı decimal parametresine veriliyor.
+            df = pd.read_csv(io.StringIO(pasted_data), sep=None, engine='python', decimal=decimal_separator)
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             return
@@ -94,22 +102,19 @@ def main():
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        relative_extra_uncertainty = extra_uncertainty / 100  # Ek Belirsizlik Bütçesi değeri 100'e bölünür.
+        # Ek Belirsizlik Bütçesi değeri 100'e bölünerek relative değer elde ediliyor.
+        relative_extra_uncertainty = extra_uncertainty / 100
         
-        # Combined Relative Uncertainty:
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
             relative_intermediate_precision**2 +
             relative_extra_uncertainty**2
         )
         
-        # Expanded Uncertainty (k=2):
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
-        
-        # Relative Expanded Uncertainty (%):
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
-        # Sonuçlar tablosu (tüm değerler noktadan sonra 4 basamak):
+        # Sonuçlar tablosu; tüm sayısal değerler noktadan sonra 4 basamakla gösteriliyor.
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
@@ -159,7 +164,7 @@ def main():
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Hata Bar Grafiği:
+        # Hata Bar Grafiği
         fig, ax = plt.subplots()
         x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
@@ -170,7 +175,7 @@ def main():
         ax.set_title(texts[language]["error_bar"])
         st.pyplot(fig)
         
-        # Günlük Ölçüm Grafiği:
+        # Günlük Ölçüm Grafiği
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
             ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
