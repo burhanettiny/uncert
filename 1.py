@@ -15,7 +15,7 @@ def calculate_intermediate_precision(ms_within, ms_between, measurements, num_me
         sum_degrees_freedom = sum(len(m) - 1 for m in measurements)
         
         if sum_degrees_freedom > 0:
-            urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom) / np.sqrt(sum_degrees_freedom)
+            urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom)
             return urepro, True
         else:
             return float('nan'), False
@@ -83,13 +83,13 @@ def main():
     
     results_df = pd.DataFrame({
         "Parametre": [
-            "Tekrarlanabilirlik",
+            "Repeatability",
             "Intermediate Precision",
             custom_extra_uncertainty_label,
             "Combined Relative Uncertainty",
-            "Relative Repeatability",
-            "Relative Intermediate Precision",
-            "Relative Ek Belirsizlik"
+            "Relative Repeatability uncertainty",
+            "Relative Intermediate Precision uncertainty",
+            "Relative Ek Belirsizlik uncertainty"
         ],
         "Değer": [
             f"{repeatability:.4f}",
@@ -119,23 +119,5 @@ def main():
     if is_urepro:
         st.write("* Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri \"urepro\" hesaplanarak belirlenmiştir.")
     
-    fig, ax = plt.subplots()
-    x_labels = df.columns.tolist() + ["Ortalama"]
-    x_values = [np.mean(day) for day in measurements] + [average_value]
-    y_errors = [np.std(day, ddof=1) for day in measurements] + [0]
-    ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-    ax.set_ylabel("Değer")
-    ax.set_title("Hata Bar Grafiği")
-    st.pyplot(fig)
-    
-    fig, ax = plt.subplots()
-    for i, group in enumerate(measurements):
-        ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-    ax.set_xlabel("Ölçüm Sayısı")
-    ax.set_ylabel("Değer")
-    ax.set_title("Günlük Ölçüm Sonuçları")
-    ax.legend()
-    st.pyplot(fig)
-
 if __name__ == "__main__":
     main()
