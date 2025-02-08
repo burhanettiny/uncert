@@ -76,11 +76,17 @@ def main():
         average_value = grand_mean
         expanded_uncertainty = combined_uncertainty * 2
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
-        
+
+        # Adding the new Relative Uncertainty calculations
+        relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
+        relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
+        relative_extra_uncertainty = extra_uncertainty / average_value if average_value != 0 else float('nan')
+
+        # Results DataFrame
         results_df = pd.DataFrame({
-            "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
-            "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}"],
-            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within) / N", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100"]
+            "Parametre": ["Ortalama Değer", "Tekrarlanabilirlik", "Intermediate Precision", "Ekstra Belirsizlik Bütçesi", "Combined Relative Uncertainty", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)", "Relative Repeatability (%)", "Relative Intermediate Precision (%)", "Relative Extra Uncertainty (%)"],
+            "Değer": [f"{average_value:.1f}", f"{repeatability:.1f}", f"{intermediate_precision:.1f}", f"{extra_uncertainty:.1f}", f"{combined_uncertainty:.1f}", f"{expanded_uncertainty:.1f}", f"{relative_expanded_uncertainty:.1f}", f"{relative_repeatability*100:.1f}", f"{relative_intermediate_precision*100:.1f}", f"{relative_extra_uncertainty*100:.1f}"],
+            "Formül": ["mean(X)", "√(MS_within)", "√(MS_between - MS_within) / N", "Extra Uncertainty", "√(Repeatability² + Intermediate Precision² + Extra Uncertainty²)", "Combined Uncertainty × 2", "(Expanded Uncertainty / Mean) × 100", "(Repeatability / Mean) × 100", "(Intermediate Precision / Mean) × 100", "(Extra Uncertainty / Mean) × 100"]
         })
         
         st.write("Sonuçlar Veri Çerçevesi:")
