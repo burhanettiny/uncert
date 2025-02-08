@@ -14,9 +14,4 @@ st.write("Sonuçlar Veri Çerçevesi (Sütun Kontrolü):", results_df.columns.to
 # Veri çerçevesini doğrudan yazdır
 st.dataframe(results_df)
 
-# Eğer `Değer` ve `Relative Expanded Uncertainty (%)` sütunları varsa stil uygula
-if "Değer" in results_df.columns and "Relative Expanded Uncertainty (%)" in results_df.columns:
-    results_df_styled = results_df.style.set_properties(subset=["Değer"], **{'width': '120px'}).set_properties(subset=["Relative Expanded Uncertainty (%)"], **{'font-weight': 'bold'})
-    st.dataframe(results_df_styled)
-else:
-    st.error("Veri çerçevesinde gerekli sütunlar bulunmuyor.")
+
