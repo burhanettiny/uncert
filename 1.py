@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np 
 import streamlit as st
 import pandas as pd
 import io
@@ -68,13 +68,8 @@ def main():
     else:
         st.stop()  # Stop if neither a file nor pasted data is provided
     
-    # Check the number of columns in the DataFrame and assign column names only if it matches 3
-    if df.shape[1] == 3:
-        df.columns = ["1. Gün", "2. Gün", "3. Gün"]
-    else:
-        st.error("Veri çerçevesinde beklenen üç sütun bulunmuyor. Lütfen verinizi kontrol edin.")
-        st.stop()  # Stop execution if the columns don't match
-    
+    # DataFrame düzenlemesi:
+    df.columns = [f"Gün {i+1}" for i in range(df.shape[1])]  # Dynamically assign columns based on number of columns
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     num_measurements_per_day = len(df)
@@ -170,7 +165,7 @@ def main():
         
         # Hata Bar Grafiği:
         fig, ax = plt.subplots()
-        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
+        x_labels = [f"Gün {i+1}" for i in range(num_groups)] + ["Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
         y_errors = [np.std(day, ddof=1) for day in measurements] + [0]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
