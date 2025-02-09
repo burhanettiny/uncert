@@ -1,22 +1,15 @@
-import numpy as np 
-import streamlit as st 
-import pandas as pd 
-import io 
+import numpy as np
+import streamlit as st
+import pandas as pd
+import io
 import matplotlib.pyplot as plt
 
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
-def calculate_intermediate_precision(ms_within, ms_between, df):
+def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
     if ms_between > ms_within:
-        # Güncellenmiş Intermediate Precision formülü
-        ip_value = np.sqrt(
-            ((np.std(df.iloc[0])**2 * (len(df.iloc[0])-1)) + 
-             (np.std(df.iloc[1])**2 * (len(df.iloc[1])-1)) + 
-             (np.std(df.iloc[2])**2 * (len(df.iloc[2])-1))) /
-            ((len(df.iloc[0])-1) + (len(df.iloc[1])-1) + (len(df.iloc[2])-1))
-        )
-        return ip_value
+        return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
     return float('nan')
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
@@ -75,8 +68,12 @@ def main():
     else:
         st.stop()  # Stop if neither a file nor pasted data is provided
     
-    # DataFrame düzenlemesi:
-    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
+    # Veri çerçevesinin kolon sayısını kontrol et
+    num_columns = df.shape[1]
+    columns = [f"{i+1}. Gün" for i in range(num_columns)]
+    
+    # Kolon isimlerini dinamik olarak ayarla
+    df.columns = columns
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
     measurements = df.T.values.tolist()
     num_measurements_per_day = len(df)
@@ -100,7 +97,7 @@ def main():
         
         # Orijinal parametreler:
         repeatability = calculate_repeatability(ms_within)
-        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, df)
+        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
         
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
@@ -121,18 +118,10 @@ def main():
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
         # Sonuçlar tablosu (tüm değerler noktadan sonra 4 basamak):
-        # Add a check for the condition where group MS > between-group MS
-        if ms_within > ms_between:
-            intermediate_precision_message = "Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri 'urepro' hesaplanarak belirlenmiştir."
-            intermediate_precision_symbol = "*"
-        else:
-            intermediate_precision_message = ""
-            intermediate_precision_symbol = ""
-        
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
-                "Intermediate Precision" + intermediate_precision_symbol,  # Add * here
+                "Intermediate Precision",
                 custom_extra_uncertainty_label,
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
@@ -175,16 +164,17 @@ def main():
         
         results_df = pd.concat([results_df, additional_row], ignore_index=True)
         
+        # Intermediate Precision için "*" ekleyin
+        if ms_between > ms_within:
+            results_df.loc[results_df['Parametre'] == 'Intermediate Precision', 'Değer'] += ' *'
+            st.write("Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri 'urepro' hesaplanarak belirlenmiştir.")
+        
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Add the message at the bottom
-        if intermediate_precision_message:
-            st.markdown(f"**{intermediate_precision_message}**")
-        
         # Hata Bar Grafiği:
         fig, ax = plt.subplots()
-        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
+        x_labels = [f"{i+1}. Gün" for i in range(num_columns)] + ["Ortalama"]
         x_values = [np.mean(day) for day in measurements] + [average_value]
         y_errors = [np.std(day, ddof=1) for day in measurements] + [0]
         ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
