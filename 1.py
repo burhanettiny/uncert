@@ -7,9 +7,16 @@ import matplotlib.pyplot as plt
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
-def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
-    if ms_between > ms_within:
-        return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
+def calculate_intermediate_precision_grouped(measurements):
+    # Eğer grup içindeki MS değeri, gruplararası MS değerinden büyükse
+    group_stdevs = [np.std(group, ddof=1) for group in measurements]
+    group_sizes = [len(group) for group in measurements]
+    
+    numerator = sum(stdev**2 * (size - 1) for stdev, size in zip(group_stdevs, group_sizes))
+    denominator = sum(size - 1 for size in group_sizes)
+    
+    if denominator > 0:
+        return np.sqrt(numerator / denominator)
     return float('nan')
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
@@ -97,7 +104,11 @@ def main():
         
         # Orijinal parametreler:
         repeatability = calculate_repeatability(ms_within)
-        intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
+        
+        # Intermediate Precision hesaplama:
+        intermediate_precision = ms_within
+        if ms_between > ms_within:
+            intermediate_precision = calculate_intermediate_precision_grouped(measurements)
         
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
