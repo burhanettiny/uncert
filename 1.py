@@ -14,8 +14,10 @@ def calculate_intermediate_precision(ms_within, ms_between, measurements):
     if ms_within > ms_between and sum_degrees_freedom > 0:
         urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom)
         return urepro, True
-    else:
+    elif ms_between > ms_within:
         return np.sqrt((ms_between - ms_within) / len(measurements[0])), False
+    else:
+        return float('nan'), False
 
 def calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
@@ -109,10 +111,13 @@ def main():
     if is_urepro:
         st.write("* Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri \"urepro\" hesaplanarak belirlenmiştir.")
     
-    fig, ax = plt.subplots()
-    df.T.plot(kind='bar', ax=ax, legend=False)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    df.T.plot(kind='bar', ax=ax, alpha=0.75, legend=True)
     ax.set_title("Günlük Ölçümler")
     ax.set_ylabel("Ölçüm Değerleri")
+    ax.set_xlabel("Günler")
+    ax.grid(True, linestyle='--', alpha=0.6)
+    
     st.pyplot(fig)
     
 if __name__ == "__main__":
