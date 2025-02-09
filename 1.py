@@ -11,7 +11,7 @@ def calculate_intermediate_precision(ms_within, ms_between, measurements):
     sum_weighted_variances = sum((np.std(m, ddof=1) ** 2) * (len(m) - 1) for m in measurements)
     sum_degrees_freedom = sum(len(m) - 1 for m in measurements)
     
-    urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom) / np.sqrt(sum_degrees_freedom)
+    urepro = np.sqrt(sum_weighted_variances / sum_degrees_freedom)
     
     if ms_within > ms_between:
         return urepro, True
