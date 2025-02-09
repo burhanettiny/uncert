@@ -107,8 +107,11 @@ def main():
         
         # Intermediate Precision hesaplama:
         intermediate_precision = ms_within
+        uyarı_mesajı = ""
+        
         if ms_between > ms_within:
             intermediate_precision = calculate_intermediate_precision_grouped(measurements)
+            uyarı_mesajı = "Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri 'urepro' hesaplanarak belirlenmiştir."
         
         # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
@@ -176,9 +179,9 @@ def main():
         results_df = pd.concat([results_df, additional_row], ignore_index=True)
         
         # Intermediate Precision için "*" ekleyin
-        if ms_between > ms_within:
+        if uyarı_mesajı:
             results_df.loc[results_df['Parametre'] == 'Intermediate Precision', 'Değer'] += ' *'
-            st.write("Grup için MS değeri, Gruplararası MS değerinden büyük olduğundan Intermediate Precision değeri 'urepro' hesaplanarak belirlenmiştir.")
+            st.write(uyarı_mesajı)
         
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
