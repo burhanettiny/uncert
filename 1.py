@@ -177,6 +177,7 @@ def main():
         # Medyanları hesapla (kesikli kırmızı çizgi için):
         all_measurements = [val for group in measurements for val in group]
         overall_median = np.median(all_measurements)
+        overall_mean = np.mean(all_measurements)
 
         # Standart sapmalar:
         y_errors = [np.std(day, ddof=1) for day in measurements]
@@ -185,7 +186,7 @@ def main():
         ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
 
         # Ortalama çizgisi (düz siyah çizgi)
-        ax2.plot(x_labels, x_values, color='black', label='Ortalama', linestyle='-', linewidth=2)
+        ax2.axhline(y=overall_mean, color='black', linestyle='-', linewidth=2, label="Ortalama")
 
         # Medyan çizgisi (düz kesikli kırmızı çizgi - her bir x noktası için)
         ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
