@@ -167,25 +167,6 @@ def main():
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Hata Bar Grafiği:
-        fig, ax = plt.subplots()
-
-        x_labels = df.columns.tolist()  # Kullanıcının girdiği sütun isimlerini al
-        x_values = [np.mean(day) for day in measurements] + [average_value] if measurements else []
-        y_errors = [np.std(day, ddof=1) for day in measurements] + [0] if measurements else []
-
-        # Eğer x_labels ve x_values uzunlukları eşit değilse uyarı ver
-        if len(x_labels) != len(x_values):
-            print("Hata: x_labels ve x_values uzunlukları eşleşmiyor!")
-            print(f"x_labels: {len(x_labels)}, x_values: {len(x_values)}")
-        else:
-            ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-
-        ax.set_ylabel("Değer")
-        ax.set_xticks(range(len(x_labels)))  # x eksenindeki konumları belirle
-        ax.set_xticklabels(x_labels, rotation=90)  # Etiketleri döndür
-        ax.set_title(texts[language]["error_bar"])
-
         # Günlük Ölçüm Grafiği:
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
@@ -213,13 +194,22 @@ def calculate_intermediate_precision_grouped(measurements):
 # Hata Bar Grafiği:
 fig, ax = plt.subplots()
 
-x_labels = df.columns.tolist()  # Kullanıcının girdiği sütun isimlerini al
-x_values = [np.mean(day) for day in measurements] + [average_value] if measurements else []
-y_errors = [np.std(day, ddof=1) for day in measurements] + [0] if measurements else []
+# Kullanıcının girdiği sütun isimlerini al
+x_labels = df.columns.tolist()
 
-# Hata mesajını yazdır, x_labels ve x_values eşleşmiyorsa
+# Günlük ölçümler ve ortalama değeri kullanarak x_values hesapla
+x_values = [np.mean(day) for day in measurements]
+if len(measurements) > 0:
+    x_values.append(np.mean([val for group in measurements for val in group]))  # Add average_value only if measurements exist
+
+# Hata çubukları için standart sapma hesapla
+y_errors = [np.std(day, ddof=1) for day in measurements]
+if len(measurements) > 0:
+    y_errors.append(0)  # Ekleyin ancak yalnızca ölçümler varsa
+
+# Eğer x_labels ve x_values uzunlukları eşleşmiyorsa uyarı ver
 if len(x_labels) != len(x_values):
-    st.warning("Hata: x_labels ve x_values uzunlukları eşleşmiyor!")
+    st.warning(f"Hata: x_labels ve x_values uzunlukları eşleşmiyor! x_labels: {len(x_labels)}, x_values: {len(x_values)}")
 else:
     ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
 
@@ -230,3 +220,4 @@ ax.set_title(texts[language]["error_bar"])
 
 # Grafiği görüntüle
 st.pyplot(fig)
+
