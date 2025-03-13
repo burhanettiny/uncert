@@ -173,12 +173,20 @@ def main():
         # Günlük ortalama değerleri hesapla:
         x_values = [np.mean(day) for day in measurements]
         x_values.append(np.mean([val for group in measurements for val in group]))
-        
+    
+        # Medyanları hesapla (kesikli kırmızı çizgi için):
+        x_medians = [np.median(day) for day in measurements]
+        x_medians.append(np.median([val for group in measurements for val in group]))
+
         # Standart sapmalar:
         y_errors = [np.std(day, ddof=1) for day in measurements]
         y_errors.append(0)
         
         ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+
+        # Ortalama ve Medyan Çizgileri:
+        ax2.plot(x_labels, x_values, color='black', label='Ortalama', linestyle='-', linewidth=2)  # Ortalama çizgisi (düz siyah)
+        ax2.plot(x_labels[:-1], x_medians[:-1], color='red', label='Medyan', linestyle='--', linewidth=2)  # Medyan çizgisi (kesikli kırmızı)
         
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
