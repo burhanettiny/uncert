@@ -175,8 +175,8 @@ def main():
         x_values.append(np.mean([val for group in measurements for val in group]))
     
         # Medyanları hesapla (kesikli kırmızı çizgi için):
-        x_medians = [np.median(day) for day in measurements]
-        x_medians.append(np.median([val for group in measurements for val in group]))
+        all_measurements = [val for group in measurements for val in group]
+        overall_median = np.median(all_measurements)
 
         # Standart sapmalar:
         y_errors = [np.std(day, ddof=1) for day in measurements]
