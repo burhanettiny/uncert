@@ -166,21 +166,48 @@ def main():
         
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
-        
+     
         # Günlük Ölçüm Grafiği:
-        fig, ax = plt.subplots()
+        fig1, ax1 = plt.subplots()
         for i, group in enumerate(measurements):
-            ax.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-        ax.set_xlabel("Ölçüm Sayısı")
-        ax.set_ylabel("Değer")
-        ax.set_title(texts[language]["daily_measurements"])
-        ax.legend()
-        st.pyplot(fig)
-
+            ax1.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
+        ax1.set_xlabel("Ölçüm Sayısı")
+        ax1.set_ylabel("Değer")
+        ax1.set_title(texts[language]["daily_measurements"])
+        ax1.legend()
+        st.pyplot(fig1)
+    
+        # Hata Bar Grafiği:
+        fig2, ax2 = plt.subplots()
+        
+        # Sütun isimleri:
+        x_labels = df.columns.tolist()
+        
+        # Günlük ortalama değerleri hesapla:
+        x_values = [np.mean(day) for day in measurements]
+        if len(measurements) > 0:
+            x_values.append(np.mean([val for group in measurements for val in group]))
+        
+        # Standart sapmalar:
+        y_errors = [np.std(day, ddof=1) for day in measurements]
+        if len(measurements) > 0:
+            y_errors.append(0)
+        
+        if len(x_labels) != len(x_values):
+            st.warning(f"Hata: x_labels ve x_values uzunlukları eşleşmiyor! x_labels: {len(x_labels)}, x_values: {len(x_values)}")
+        else:
+            ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+        
+        ax2.set_ylabel("Değer")
+        ax2.set_xticks(range(len(x_labels)))
+        ax2.set_xticklabels(x_labels, rotation=90)
+        ax2.set_title(texts[language]["error_bar"])
+        st.pyplot(fig2)
+        
 if __name__ == "__main__":
     main()
+    
 def calculate_intermediate_precision_grouped(measurements):
-    # Eğer grup içindeki MS değeri, gruplararası MS değerinden büyükse
     group_stdevs = [np.std(group, ddof=1) for group in measurements]
     group_sizes = [len(group) for group in measurements]
     
@@ -190,34 +217,3 @@ def calculate_intermediate_precision_grouped(measurements):
     if denominator > 0:
         return np.sqrt(numerator / denominator)
     return float('nan')
-       
-# Hata Bar Grafiği:
-fig, ax = plt.subplots()
-
-# Kullanıcının girdiği sütun isimlerini al
-x_labels = df.columns.tolist()
-
-# Günlük ölçümler ve ortalama değeri kullanarak x_values hesapla
-x_values = [np.mean(day) for day in measurements]
-if len(measurements) > 0:
-    x_values.append(np.mean([val for group in measurements for val in group]))  # Add average_value only if measurements exist
-
-# Hata çubukları için standart sapma hesapla
-y_errors = [np.std(day, ddof=1) for day in measurements]
-if len(measurements) > 0:
-    y_errors.append(0)  # Ekleyin ancak yalnızca ölçümler varsa
-
-# Eğer x_labels ve x_values uzunlukları eşleşmiyorsa uyarı ver
-if len(x_labels) != len(x_values):
-    st.warning(f"Hata: x_labels ve x_values uzunlukları eşleşmiyor! x_labels: {len(x_labels)}, x_values: {len(x_values)}")
-else:
-    ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-
-ax.set_ylabel("Değer")
-ax.set_xticks(range(len(x_labels)))  # x eksenindeki konumları belirle
-ax.set_xticklabels(x_labels, rotation=90)  # Etiketleri döndür
-ax.set_title(texts[language]["error_bar"])
-
-# Grafiği görüntüle
-st.pyplot(fig)
-
