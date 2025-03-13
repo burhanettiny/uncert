@@ -184,9 +184,12 @@ def main():
         
         ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
 
-        # Ortalama ve Medyan Çizgileri:
-        ax2.plot(x_labels, x_values, color='black', label='Ortalama', linestyle='-', linewidth=2)  # Ortalama çizgisi (düz siyah)
-        ax2.plot(x_labels[:-1], x_medians[:-1], color='red', label='Medyan', linestyle='--', linewidth=2)  # Medyan çizgisi (kesikli kırmızı)
+        # Ortalama çizgisi (düz siyah çizgi)
+        ax2.plot(x_labels, x_values, color='black', label='Ortalama', linestyle='-', linewidth=2)
+
+        # Medyan çizgisi (düz kesikli kırmızı çizgi - her bir x noktası için)
+        for i, median in enumerate(x_medians[:-1]):  # Son eklenen 'Genel Ortalama' için çizme
+            ax2.axhline(y=median, color='red', linestyle='--', linewidth=2)  # Yatay kesikli kırmızı çizgi
         
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
