@@ -190,7 +190,11 @@ def main():
 
         # Medyan çizgisi (düz kesikli kırmızı çizgi - her bir x noktası için)
         ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
-        
+
+        # Grafik açıklamaları:
+        st.write(f"**Medyan:** {overall_median:.4f} (Tüm ölçümlerin medyanı)")
+        st.write(f"**Ortalama:** {overall_mean:.4f} (Tüm ölçümlerin ortalaması)")
+
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
         ax2.set_xticklabels(x_labels, rotation=90)
@@ -199,19 +203,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Grafik açıklamaları:
-st.write(f"**Medyan:** {overall_median:.4f} (Tüm ölçümlerin medyanı)")
-st.write(f"**Ortalama:** {overall_mean:.4f} (Tüm ölçümlerin ortalaması)")
-
-def calculate_intermediate_precision_grouped(measurements):
-    group_stdevs = [np.std(group, ddof=1) for group in measurements]
-    group_sizes = [len(group) for group in measurements]
-    
-    numerator = sum(stdev**2 * (size - 1) for stdev, size in zip(group_stdevs, group_sizes))
-    denominator = sum(size - 1 for size in group_sizes)
-    
-    if denominator > 0:
-        return np.sqrt(numerator / denominator)
-    return float('nan')
 
