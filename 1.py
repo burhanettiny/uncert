@@ -192,8 +192,9 @@ def main():
         ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
 
         # Grafik açıklamaları:
-        st.write(f"**Medyan:** {overall_median:.2f} (Medyan)")
-        st.write(f"**Ortalama:** {overall_mean:.2f} (Ortalama)")
+        st.markdown(f"**Medyan:** {overall_median:.2f} (Medyan)  <span style='color:red;'>──</span>", unsafe_allow_html=True)
+        st.markdown(f"**Ortalama:** {overall_mean:.2f} (Ortalama)  <span style='color:black;'>──</span>", unsafe_allow_html=True)
+
 
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
