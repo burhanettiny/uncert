@@ -188,8 +188,7 @@ def main():
         ax2.plot(x_labels, x_values, color='black', label='Ortalama', linestyle='-', linewidth=2)
 
         # Medyan çizgisi (düz kesikli kırmızı çizgi - her bir x noktası için)
-        for i, median in enumerate(x_medians[:-1]):  # Son eklenen 'Genel Ortalama' için çizme
-            ax2.axhline(y=median, color='red', linestyle='--', linewidth=2)  # Yatay kesikli kırmızı çizgi
+        ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
         
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
