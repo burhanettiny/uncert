@@ -73,7 +73,7 @@ def main():
     
     # DataFrame düzenlemesi:
     column_names = ["1. Gün", "2. Gün", "3. Gün"]  # Maksimum sütun isimleri
-    df.columns = column_names[:df.shape[1]]  # Kullanıcının girdisine uygun şekilde isimlendir
+    df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]  # Satır isimlendirme
     measurements = df.T.values.tolist()  # Transpoz alıp listeye çevir
     num_measurements_per_day = len(df)  # Gün başına ölçüm sayısı
