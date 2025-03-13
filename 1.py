@@ -167,17 +167,25 @@ def main():
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
         
-        # Hata Bar Grafiği:
-        fig, ax = plt.subplots()
-        x_labels = ["1. Gün", "2. Gün", "3. Gün", "Ortalama"]
-        x_values = [np.mean(day) for day in measurements] + [average_value]
-        y_errors = [np.std(day, ddof=1) for day in measurements] + [0]
-        ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-        ax.set_ylabel("Değer")
-        ax.set_xticklabels(x_labels, rotation=90)
-        ax.set_title(texts[language]["error_bar"])
-        st.pyplot(fig)
-        
+# Hata Bar Grafiği:
+fig, ax = plt.subplots()
+
+x_labels = df.columns.tolist()  # Kullanıcının girdiği sütun isimlerini al
+x_values = [np.mean(day) for day in measurements] + [average_value] if measurements else []
+y_errors = [np.std(day, ddof=1) for day in measurements] + [0] if measurements else []
+
+# Eğer x_labels ve x_values uzunlukları eşit değilse uyarı ver
+if len(x_labels) != len(x_values):
+    print("Hata: x_labels ve x_values uzunlukları eşleşmiyor!")
+    print(f"x_labels: {len(x_labels)}, x_values: {len(x_values)}")
+else:
+    ax.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+
+ax.set_ylabel("Değer")
+ax.set_xticks(range(len(x_labels)))  # x eksenindeki konumları belirle
+ax.set_xticklabels(x_labels, rotation=90)  # Etiketleri döndür
+ax.set_title(texts[language]["error_bar"])
+
         # Günlük Ölçüm Grafiği:
         fig, ax = plt.subplots()
         for i, group in enumerate(measurements):
