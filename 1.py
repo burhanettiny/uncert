@@ -177,43 +177,28 @@ def main():
         ax1.legend()
         st.pyplot(fig1)
     
-        # Hata Bar Grafiği:
-        fig2, ax2 = plt.subplots()
-        
-        # Sütun isimleri:
-        x_labels = df.columns.tolist()
-        
-        # Günlük ortalama değerleri hesapla:
-        x_values = [np.mean(day) for day in measurements]
-        if len(measurements) > 0:
-            x_values.append(np.mean([val for group in measurements for val in group]))
-        
-        # Standart sapmalar:
-        y_errors = [np.std(day, ddof=1) for day in measurements]
-        if len(measurements) > 0:
-            y_errors.append(0)
-        
-        if len(x_labels) != len(x_values):
-            st.warning(f"Hata: x_labels ve x_values uzunlukları eşleşmiyor! x_labels: {len(x_labels)}, x_values: {len(x_values)}")
-        else:
-            ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-        
-        ax2.set_ylabel("Değer")
-        ax2.set_xticks(range(len(x_labels)))
-        ax2.set_xticklabels(x_labels, rotation=90)
-        ax2.set_title(texts[language]["error_bar"])
-        st.pyplot(fig2)
-        
-if __name__ == "__main__":
-    main()
-    
-def calculate_intermediate_precision_grouped(measurements):
-    group_stdevs = [np.std(group, ddof=1) for group in measurements]
-    group_sizes = [len(group) for group in measurements]
-    
-    numerator = sum(stdev**2 * (size - 1) for stdev, size in zip(group_stdevs, group_sizes))
-    denominator = sum(size - 1 for size in group_sizes)
-    
-    if denominator > 0:
-        return np.sqrt(numerator / denominator)
-    return float('nan')
+# Hata Bar Grafiği:
+fig2, ax2 = plt.subplots()
+
+# Sütun isimlerini al ve "Genel Ortalama" etiketini ekle:
+x_labels = df.columns.tolist()
+x_labels.append("Genel Ortalama")  # Genel ortalama için ek etiket
+
+# Günlük ortalama değerleri hesapla:
+x_values = [np.mean(day) for day in measurements]
+# Genel ortalama: Tüm ölçümlerin ortalaması
+x_values.append(np.mean([val for group in measurements for val in group]))
+
+# Standart sapmalar:
+y_errors = [np.std(day, ddof=1) for day in measurements]
+y_errors.append(0)  # Genel ortalama için hata çubuğu olmadığı varsayılıyor
+
+# x_labels, x_values ve y_errors uzunlukları artık eşleşiyor, hata uyarısı vermeye gerek yok.
+ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+
+ax2.set_ylabel("Değer")
+ax2.set_xticks(range(len(x_labels)))
+ax2.set_xticklabels(x_labels, rotation=90)
+ax2.set_title(texts[language]["error_bar"])
+
+st.pyplot(fig2)
