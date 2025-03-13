@@ -200,6 +200,19 @@ def main():
 if __name__ == "__main__":
     main()
 
+# Y eksenine etiket ve başlık ekleyelim
+ax2.set_ylabel("Değer")
+ax2.set_xticks(range(len(x_labels)))
+ax2.set_xticklabels(x_labels, rotation=90)
+ax2.set_title(texts[language]["error_bar"])
+
+# Açıklamaları ekle
+ax2.legend(loc='upper left')
+
+# Grafik açıklamaları:
+st.write(f"**Medyan:** {overall_median:.4f} (Tüm ölçümlerin medyanı)")
+st.write(f"**Ortalama:** {overall_mean:.4f} (Tüm ölçümlerin ortalaması)")
+
 def calculate_intermediate_precision_grouped(measurements):
     group_stdevs = [np.std(group, ddof=1) for group in measurements]
     group_sizes = [len(group) for group in measurements]
