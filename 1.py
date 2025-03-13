@@ -49,34 +49,27 @@ def main():
     uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Önce Ek Belirsizlik Bütçesi Etiketi girilsin:
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
-    # Bu etiket başlığı ile Ek Belirsizlik Bütçesi değeri girilsin:
     extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
-    
-    measurements = []
     
     if uploaded_file is not None:
         df = pd.read_excel(uploaded_file, header=None)
     elif pasted_data:
         try:
-            # Replace commas with periods for decimal values
             pasted_data = pasted_data.replace(',', '.')
-            
-            # Try reading the data as space-separated values
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
         except Exception as e:
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
-            st.stop()  # Use st.stop() to stop execution if there's an error
+            st.stop()
     else:
-        st.stop()  # Stop if neither a file nor pasted data is provided
+        st.error("Lütfen veri yükleyin veya yapıştırın!")
+        st.stop()
     
     # DataFrame düzenlemesi:
-    column_names = ["1. Gün", "2. Gün", "3. Gün"]  # Maksimum sütun isimleri
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
-    df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]  # Satır isimlendirme
-    measurements = df.T.values.tolist()  # Transpoz alıp listeye çevir
-    num_measurements_per_day = len(df)  # Gün başına ölçüm sayısı
+    df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
+    measurements = df.T.values.tolist()
+    num_measurements_per_day = len(df)
     
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
@@ -95,29 +88,22 @@ def main():
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
         
-        # Orijinal parametreler:
         repeatability = calculate_repeatability(ms_within)
         intermediate_precision = calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
         
-        # Relative değerler:
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        relative_extra_uncertainty = extra_uncertainty / 100  # Ek Belirsizlik Bütçesi değeri 100'e bölünür.
+        relative_extra_uncertainty = extra_uncertainty / 100
         
-        # Combined Relative Uncertainty:
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
             relative_intermediate_precision**2 +
             relative_extra_uncertainty**2
         )
         
-        # Expanded Uncertainty (k=2):
         expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
-        
-        # Relative Expanded Uncertainty (%):
         relative_expanded_uncertainty = calculate_relative_expanded_uncertainty(expanded_uncertainty, average_value)
         
-        # Sonuçlar tablosu (tüm değerler noktadan sonra 4 basamak):
         results_df = pd.DataFrame({
             "Parametre": [
                 "Tekrarlanabilirlik",
@@ -166,7 +152,7 @@ def main():
         
         st.write("Sonuçlar Veri Çerçevesi:")
         st.dataframe(results_df)
-     
+        
         # Günlük Ölçüm Grafiği:
         fig1, ax1 = plt.subplots()
         for i, group in enumerate(measurements):
@@ -176,29 +162,40 @@ def main():
         ax1.set_title(texts[language]["daily_measurements"])
         ax1.legend()
         st.pyplot(fig1)
+        
+        # Hata Bar Grafiği:
+        fig2, ax2 = plt.subplots()
+        
+        # Sütun isimlerini al ve "Genel Ortalama" etiketini ekle:
+        x_labels = df.columns.tolist()
+        x_labels.append("Genel Ortalama")
+        
+        # Günlük ortalama değerleri hesapla:
+        x_values = [np.mean(day) for day in measurements]
+        x_values.append(np.mean([val for group in measurements for val in group]))
+        
+        # Standart sapmalar:
+        y_errors = [np.std(day, ddof=1) for day in measurements]
+        y_errors.append(0)
+        
+        ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+        
+        ax2.set_ylabel("Değer")
+        ax2.set_xticks(range(len(x_labels)))
+        ax2.set_xticklabels(x_labels, rotation=90)
+        ax2.set_title(texts[language]["error_bar"])
+        st.pyplot(fig2)
+
+if __name__ == "__main__":
+    main()
+
+def calculate_intermediate_precision_grouped(measurements):
+    group_stdevs = [np.std(group, ddof=1) for group in measurements]
+    group_sizes = [len(group) for group in measurements]
     
-# Hata Bar Grafiği:
-fig2, ax2 = plt.subplots()
-
-# Sütun isimlerini al ve "Genel Ortalama" etiketini ekle:
-x_labels = df.columns.tolist()
-x_labels.append("Genel Ortalama")  # Genel ortalama için ek etiket
-
-# Günlük ortalama değerleri hesapla:
-x_values = [np.mean(day) for day in measurements]
-# Genel ortalama: Tüm ölçümlerin ortalaması
-x_values.append(np.mean([val for group in measurements for val in group]))
-
-# Standart sapmalar:
-y_errors = [np.std(day, ddof=1) for day in measurements]
-y_errors.append(0)  # Genel ortalama için hata çubuğu olmadığı varsayılıyor
-
-# x_labels, x_values ve y_errors uzunlukları artık eşleşiyor, hata uyarısı vermeye gerek yok.
-ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-
-ax2.set_ylabel("Değer")
-ax2.set_xticks(range(len(x_labels)))
-ax2.set_xticklabels(x_labels, rotation=90)
-ax2.set_title(texts[language]["error_bar"])
-
-st.pyplot(fig2)
+    numerator = sum(stdev**2 * (size - 1) for stdev, size in zip(group_stdevs, group_sizes))
+    denominator = sum(size - 1 for size in group_sizes)
+    
+    if denominator > 0:
+        return np.sqrt(numerator / denominator)
+    return float('nan')
