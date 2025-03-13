@@ -6,11 +6,6 @@ import matplotlib.pyplot as plt
 
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
-import numpy as np 
-import streamlit as st
-import pandas as pd
-import io
-import matplotlib.pyplot as plt
 
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
@@ -77,10 +72,11 @@ def main():
         st.stop()  # Stop if neither a file nor pasted data is provided
     
     # DataFrame düzenlemesi:
-    df.columns = ["1. Gün", "2. Gün", "3. Gün"]
-    df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
-    measurements = df.T.values.tolist()
-    num_measurements_per_day = len(df)
+    column_names = ["1. Gün", "2. Gün", "3. Gün"]  # Maksimum sütun isimleri
+    df.columns = column_names[:df.shape[1]]  # Kullanıcının girdisine uygun şekilde isimlendir
+    df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]  # Satır isimlendirme
+    measurements = df.T.values.tolist()  # Transpoz alıp listeye çevir
+    num_measurements_per_day = len(df)  # Gün başına ölçüm sayısı
     
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
