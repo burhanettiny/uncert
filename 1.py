@@ -51,21 +51,16 @@ def main():
     
     pasted_data = st.text_area(texts[language]["paste"])
     
-    # Ekstra belirsizlik türlerini kullanıcıdan alıyoruz:
+    # Ekstra belirsizlik türlerinin sayısını kullanıcıdan alıyoruz:
+    num_extra_uncertainties = st.number_input("Ekstra Belirsizlik Bütçesi Sayısı", min_value=1, max_value=10, value=1, step=1)
     extra_uncertainties = []
-    st.subheader(texts[language]["add_uncertainty"])
-    uncertainty_types = [
-        "Partition Volume Uncertainty",
-        "Pipet Uncertainty",
-        "Balance Uncertainty",
-        "Homogeneity Uncertainty",
-        "Stability Uncertainty"
-    ]
     
-    for uncertainty_type in uncertainty_types:
-        label = st.text_input(f"{uncertainty_type} ({texts[language]['extra_uncertainty']})", value="")
+    st.subheader(texts[language]["add_uncertainty"])
+    
+    for i in range(num_extra_uncertainties):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı ({texts[language]['extra_uncertainty']})", value="")
         if label:
-            value = st.number_input(f"{uncertainty_type} Değeri", min_value=0.0, value=0.0, step=0.01)
+            value = st.number_input(f"Ekstra Belirsizlik {i+1} Değeri", min_value=0.0, value=0.0, step=0.01)
             extra_uncertainties.append((label, value))
     
     if pasted_data:
