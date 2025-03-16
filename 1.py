@@ -7,9 +7,6 @@ import matplotlib.pyplot as plt
 def calculate_repeatability(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
-def calculate_repeatability(ms_within):
-    return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
-
 def calculate_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
     if ms_between > ms_within:
         return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
@@ -24,7 +21,6 @@ def main():
         "Türkçe": {
             "title": "Belirsizlik Hesaplama Uygulaması",
             "subtitle": "B. Yalçınkaya tarafından geliştirildi",
-            "upload": "Excel dosyanızı yükleyin",
             "paste": "Verileri buraya yapıştırın",
             "extra_uncertainty": "Ek Belirsizlik Bütçesi",
             "results": "Sonuçlar",
@@ -34,7 +30,6 @@ def main():
         "English": {
             "title": "Uncertainty Calculation Application",
             "subtitle": "Developed by B. Yalçınkaya",
-            "upload": "Upload your Excel file",
             "paste": "Paste data here",
             "extra_uncertainty": "Extra Uncertainty Budget",
             "results": "Results",
@@ -46,15 +41,12 @@ def main():
     st.title(texts[language]["title"])
     st.caption(texts[language]["subtitle"])
     
-    uploaded_file = st.file_uploader(texts[language]["upload"], type=["xlsx", "xls"])
     pasted_data = st.text_area(texts[language]["paste"])
     
     custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
     extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
     
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, header=None)
-    elif pasted_data:
+    if pasted_data:
         try:
             pasted_data = pasted_data.replace(',', '.')
             df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
@@ -62,7 +54,7 @@ def main():
             st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
             st.stop()
     else:
-        st.error("Lütfen veri yükleyin veya yapıştırın!")
+        st.error("Lütfen veri yapıştırın!")
         st.stop()
     
     # DataFrame düzenlemesi:
@@ -195,7 +187,6 @@ def main():
         st.markdown(f"**Medyan:** {overall_median:.2f} (Medyan)  <span style='color:red;'>──</span>", unsafe_allow_html=True)
         st.markdown(f"**Ortalama:** {overall_mean:.2f} (Ortalama)  <span style='color:black;'>──</span>", unsafe_allow_html=True)
 
-
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
         ax2.set_xticklabels(x_labels, rotation=90)
@@ -204,4 +195,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
