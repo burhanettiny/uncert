@@ -25,7 +25,11 @@ def main():
             "extra_uncertainty": "Ek Belirsizlik Bütçesi",
             "results": "Sonuçlar",
             "error_bar": "Hata Bar Grafiği",
-            "daily_measurements": "Günlük Ölçüm Sonuçları"
+            "daily_measurements": "Günlük Ölçüm Sonuçları",
+            "average_value": "Ortalama Değer",
+            "expanded_uncertainty": "Expanded Uncertainty (k=2)",
+            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
+            "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
         },
         "English": {
             "title": "Uncertainty Calculation Application",
@@ -34,7 +38,11 @@ def main():
             "extra_uncertainty": "Extra Uncertainty Budget",
             "results": "Results",
             "error_bar": "Error Bar Graph",
-            "daily_measurements": "Daily Measurement Results"
+            "daily_measurements": "Daily Measurement Results",
+            "average_value": "Average Value",
+            "expanded_uncertainty": "Expanded Uncertainty (k=2)",
+            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
+            "add_uncertainty": "Add Extra Uncertainty Budget"
         }
     }
     
@@ -43,8 +51,22 @@ def main():
     
     pasted_data = st.text_area(texts[language]["paste"])
     
-    custom_extra_uncertainty_label = st.text_input("Ek Belirsizlik Bütçesi Etiketi", value="Ek Belirsizlik Bütçesi")
-    extra_uncertainty = st.number_input(custom_extra_uncertainty_label, min_value=0.0, value=0.0, step=0.01)
+    # Ekstra belirsizlik türlerini kullanıcıdan alıyoruz:
+    extra_uncertainties = []
+    st.subheader(texts[language]["add_uncertainty"])
+    uncertainty_types = [
+        "Partition Volume Uncertainty",
+        "Pipet Uncertainty",
+        "Balance Uncertainty",
+        "Homogeneity Uncertainty",
+        "Stability Uncertainty"
+    ]
+    
+    for uncertainty_type in uncertainty_types:
+        label = st.text_input(f"{uncertainty_type} ({texts[language]['extra_uncertainty']})", value="")
+        if label:
+            value = st.number_input(f"{uncertainty_type} Değeri", min_value=0.0, value=0.0, step=0.01)
+            extra_uncertainties.append((label, value))
     
     if pasted_data:
         try:
@@ -85,7 +107,10 @@ def main():
         
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        relative_extra_uncertainty = extra_uncertainty / 100
+        
+        # Ekstra belirsizlikleri hesaba katıyoruz:
+        combined_extra_uncertainty = np.sqrt(sum(value ** 2 for label, value in extra_uncertainties))
+        relative_extra_uncertainty = combined_extra_uncertainty / average_value if average_value != 0 else float('nan')
         
         combined_relative_uncertainty = np.sqrt(
             relative_repeatability**2 +
@@ -100,7 +125,7 @@ def main():
             "Parametre": [
                 "Tekrarlanabilirlik",
                 "Intermediate Precision",
-                custom_extra_uncertainty_label,
+                *[label for label, _ in extra_uncertainties],
                 "Combined Relative Uncertainty",
                 "Relative Repeatability",
                 "Relative Intermediate Precision",
@@ -109,7 +134,7 @@ def main():
             "Değer": [
                 f"{repeatability:.4f}",
                 f"{intermediate_precision:.4f}",
-                f"{extra_uncertainty:.4f}",
+                *[f"{value:.4f}" for _, value in extra_uncertainties],
                 f"{combined_relative_uncertainty:.4f}",
                 f"{relative_repeatability:.4f}",
                 f"{relative_intermediate_precision:.4f}",
@@ -118,7 +143,7 @@ def main():
             "Formül": [
                 "√(MS_within)",
                 "√((MS_between - MS_within) / N)",
-                f"({custom_extra_uncertainty_label} değeri)",
+                *["(" + label + " değeri)" for label, _ in extra_uncertainties],
                 "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Ek Belirsizlik)²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
@@ -127,7 +152,7 @@ def main():
         })
         
         additional_row = pd.DataFrame({
-            "Parametre": ["Ortalama Değer", "Expanded Uncertainty (k=2)", "Relative Expanded Uncertainty (%)"],
+            "Parametre": [texts[language]["average_value"], texts[language]["expanded_uncertainty"], texts[language]["relative_expanded_uncertainty"]],
             "Değer": [
                 f"{average_value:.4f}",
                 f"{expanded_uncertainty:.4f}",
@@ -142,7 +167,7 @@ def main():
         
         results_df = pd.concat([results_df, additional_row], ignore_index=True)
         
-        st.write("Sonuçlar Veri Çerçevesi:")
+        st.write(texts[language]["results"] + " Veri Çerçevesi:")
         st.dataframe(results_df)
         
         # Günlük Ölçüm Grafiği:
