@@ -130,7 +130,7 @@ def main():
                 "Relative Repeatability",
                 "Relative Intermediate Precision",
                 "Relative Ek Belirsizlik"
-            ],
+            ],         
             "Değer": [
                 f"{repeatability:.4f}",
                 f"{intermediate_precision:.4f}",
@@ -143,11 +143,11 @@ def main():
             "Formül": [
                 "√(MS_within)",
                 "√((MS_between - MS_within) / N)",
-                *["(" + label + " değeri)" for label, _ in extra_uncertainties],
+                *[f"({label} değeri)" for label, _ in extra_uncertainties],
                 "√((Relative Repeatability)² + (Relative Intermediate Precision)² + (Relative Ek Belirsizlik)²)",
                 "(Repeatability / Mean)",
                 "(Intermediate Precision / Mean)",
-                f"({custom_extra_uncertainty_label} / 100)"
+                f"({value} / 100)" for label, value in extra_uncertainties  # her bir ekstra belirsizlik için formül
             ]
         })
         
