@@ -212,6 +212,7 @@ def main():
         st.markdown(f"**Medyan:** {overall_median:.2f} (Medyan)  <span style='color:red;'>──</span>", unsafe_allow_html=True)
         st.markdown(f"**Ortalama:** {overall_mean:.2f} (Ortalama)  <span style='color:black;'>──</span>", unsafe_allow_html=True)
 
+
         ax2.set_ylabel("Değer")
         ax2.set_xticks(range(len(x_labels)))
         ax2.set_xticklabels(x_labels, rotation=90)
