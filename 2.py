@@ -139,97 +139,124 @@ def run_paste_mode():
 
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
-    measurements = df.T.values.tolist()
+
+    # ------------------------
+    # Sayısal olmayan veya boş hücreleri filtreleme
+    # ------------------------
+    measurements = []
+    for col in df.columns:
+        group = []
+        for val in df[col]:
+            try:
+                group.append(float(val))
+            except:
+                continue
+        measurements.append(group)
+
+    all_values = [val for group in measurements for val in group]
+    if not all_values:
+        st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
+        st.stop()
+
     num_measurements_per_day = len(df)
     st.write("Yapıştırılan Veri:")
     st.dataframe(df, use_container_width=True)
 
-    if len(measurements) > 1:
-        total_values = sum(len(m) for m in measurements)
-        num_groups = len(measurements)
-        average_value = np.mean([val for group in measurements for val in group])
+    # ------------------------
+    # Hesaplamalar
+    # ------------------------
+    total_values = sum(len(m) for m in measurements)
+    num_groups = len(measurements)
+    average_value = np.mean(all_values)
 
-        ss_between = sum(len(m) * (np.mean(m) - average_value) ** 2 for m in measurements)
-        ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
-        df_between = num_groups - 1
-        df_within = total_values - num_groups
-        ms_between = ss_between / df_between if df_between > 0 else float('nan')
-        ms_within = ss_within / df_within if df_within > 0 else float('nan')
+    ss_between = sum(len(m) * (np.mean(m) - average_value) ** 2 for m in measurements)
+    ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
+    df_between = num_groups - 1
+    df_within = total_values - num_groups
+    ms_between = ss_between / df_between if df_between > 0 else float('nan')
+    ms_within = ss_within / df_within if df_within > 0 else float('nan')
 
-        repeatability = calc_repeatability_from_ms(ms_within)
-        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
-        relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
-        relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
-        combined_extra_uncertainty = np.sqrt(sum(value ** 2 for label, value in extra_uncertainties))
-        relative_extra_uncertainty = combined_extra_uncertainty / average_value if average_value != 0 else float('nan')
-        combined_relative_uncertainty = np.sqrt(
-            relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_uncertainty**2
-        )
-        expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
-        relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
+    repeatability = calc_repeatability_from_ms(ms_within)
+    intermediate_precision = calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
+    relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
+    relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
+    combined_extra_uncertainty = np.sqrt(sum(value ** 2 for label, value in extra_uncertainties))
+    relative_extra_uncertainty = combined_extra_uncertainty / average_value if average_value != 0 else float('nan')
+    combined_relative_uncertainty = np.sqrt(
+        relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_uncertainty**2
+    )
+    expanded_uncertainty = 2 * combined_relative_uncertainty * average_value
+    relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
 
-        results_df = pd.DataFrame({
-            "Parametre": [
-                "Tekrarlanabilirlik",
-                "Intermediate Precision",
-                *[label for label, _ in extra_uncertainties],
-                "Combined Relative Uncertainty",
-                "Relative Repeatability",
-                "Relative Intermediate Precision",
-                "Relative Ek Belirsizlik"
-            ],
-            "Değer": [
-                f"{repeatability:.4f}",
-                f"{intermediate_precision:.4f}",
-                *[f"{value:.4f}" for _, value in extra_uncertainties],
-                f"{combined_relative_uncertainty:.4f}",
-                f"{relative_repeatability:.4f}",
-                f"{relative_intermediate_precision:.4f}",
-                f"{relative_extra_uncertainty:.4f}"
-            ]
-        })
-        additional_row = pd.DataFrame({
-            "Parametre": [texts[language]["average_value"], texts[language]["expanded_uncertainty"], texts[language]["relative_expanded_uncertainty"]],
-            "Değer": [
-                f"{average_value:.4f}",
-                f"{expanded_uncertainty:.4f}",
-                f"{relative_expanded_uncertainty:.4f}"
-            ]
-        })
-        results_df = pd.concat([results_df, additional_row], ignore_index=True)
-        st.write(texts[language]["results"])
-        st.dataframe(results_df)
+    # ------------------------
+    # Sonuç Tablosu
+    # ------------------------
+    results_df = pd.DataFrame({
+        "Parametre": [
+            "Tekrarlanabilirlik",
+            "Intermediate Precision",
+            *[label for label, _ in extra_uncertainties],
+            "Combined Relative Uncertainty",
+            "Relative Repeatability",
+            "Relative Intermediate Precision",
+            "Relative Ek Belirsizlik"
+        ],
+        "Değer": [
+            f"{repeatability:.4f}",
+            f"{intermediate_precision:.4f}",
+            *[f"{value:.4f}" for _, value in extra_uncertainties],
+            f"{combined_relative_uncertainty:.4f}",
+            f"{relative_repeatability:.4f}",
+            f"{relative_intermediate_precision:.4f}",
+            f"{relative_extra_uncertainty:.4f}"
+        ]
+    })
+    additional_row = pd.DataFrame({
+        "Parametre": [texts[language]["average_value"], texts[language]["expanded_uncertainty"], texts[language]["relative_expanded_uncertainty"]],
+        "Değer": [
+            f"{average_value:.4f}",
+            f"{expanded_uncertainty:.4f}",
+            f"{relative_expanded_uncertainty:.4f}"
+        ]
+    })
+    results_df = pd.concat([results_df, additional_row], ignore_index=True)
+    st.write(texts[language]["results"])
+    st.dataframe(results_df)
 
-        # Günlük Grafik
-        fig1, ax1 = plt.subplots()
-        for i, group in enumerate(measurements):
-            ax1.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-        ax1.set_xlabel("Ölçüm Sayısı")
-        ax1.set_ylabel("Değer")
-        ax1.set_title(texts[language]["daily_measurements"])
-        ax1.legend()
-        st.pyplot(fig1)
+    # ------------------------
+    # Günlük Grafik
+    # ------------------------
+    fig1, ax1 = plt.subplots()
+    for i, group in enumerate(measurements):
+        ax1.plot(range(1, len(group) + 1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
+    ax1.set_xlabel("Ölçüm Sayısı")
+    ax1.set_ylabel("Değer")
+    ax1.set_title(texts[language]["daily_measurements"])
+    ax1.legend()
+    st.pyplot(fig1)
 
-        # Hata Bar Grafiği
-        fig2, ax2 = plt.subplots()
-        x_labels = df.columns.tolist()
-        x_labels.append("Genel Ortalama")
-        x_values = [np.mean(day) for day in measurements]
-        x_values.append(np.mean([val for group in measurements for val in group]))
-        y_errors = [np.std(day, ddof=1) for day in measurements]
-        y_errors.append(0)
-        overall_median = np.median([val for group in measurements for val in group])
-        overall_mean = np.mean([val for group in measurements for val in group])
-        ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
-        ax2.axhline(y=overall_mean, color='black', linestyle='-', linewidth=2, label="Ortalama")
-        ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
-        ax2.set_ylabel("Değer")
-        ax2.set_xticks(range(len(x_labels)))
-        ax2.set_xticklabels(x_labels, rotation=90)
-        ax2.set_title(texts[language]["error_bar"])
-        st.pyplot(fig2)
-        st.markdown(f"**Medyan:** {overall_median:.2f}  <span style='color:red;'>──</span>", unsafe_allow_html=True)
-        st.markdown(f"**Ortalama:** {overall_mean:.2f}  <span style='color:black;'>──</span>", unsafe_allow_html=True)
+    # ------------------------
+    # Hata Bar Grafiği
+    # ------------------------
+    fig2, ax2 = plt.subplots()
+    x_labels = df.columns.tolist()
+    x_labels.append("Genel Ortalama")
+    x_values = [np.mean(day) for day in measurements]
+    x_values.append(np.mean(all_values))
+    y_errors = [np.std(day, ddof=1) for day in measurements]
+    y_errors.append(0)
+    overall_median = np.median(all_values)
+    overall_mean = np.mean(all_values)
+    ax2.errorbar(x_labels, x_values, yerr=y_errors, fmt='o', capsize=5, ecolor='red', linestyle='None')
+    ax2.axhline(y=overall_mean, color='black', linestyle='-', linewidth=2, label="Ortalama")
+    ax2.axhline(y=overall_median, color='red', linestyle='--', linewidth=2, label="Medyan")
+    ax2.set_ylabel("Değer")
+    ax2.set_xticks(range(len(x_labels)))
+    ax2.set_xticklabels(x_labels, rotation=90)
+    ax2.set_title(texts[language]["error_bar"])
+    st.pyplot(fig2)
+    st.markdown(f"**Medyan:** {overall_median:.2f}  <span style='color:red;'>──</span>", unsafe_allow_html=True)
+    st.markdown(f"**Ortalama:** {overall_mean:.2f}  <span style='color:black;'>──</span>", unsafe_allow_html=True)
 
 # ------------------------
 # Ana Fonksiyon
