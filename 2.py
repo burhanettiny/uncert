@@ -3,6 +3,9 @@ import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+from matplotlib.patches import FancyBboxPatch
+
 
 # ------------------------
 # Dil Metinleri
@@ -159,6 +162,41 @@ def run_manual_mode(lang_texts):
         expanded_overall_uncertainty = 2 * combined_relative_unc * overall_avg
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_overall_uncertainty, overall_avg)
 
+
+def plot_formula_flowchart(lang_texts):
+    fig, ax = plt.subplots(figsize=(6, 8))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis('off')
+
+    # Kutucuklar: (x, y, text)
+    boxes = [
+        (5, 9, lang_texts.get("flow_measurements", "Ölçümler / Measurements")),
+        (5, 7.5, lang_texts.get("flow_repeatability_within", "Tekrarlanabilirlik (Within / s)")),
+        (5, 6, lang_texts.get("flow_repeatability_between", "Günler Arası Tekrarlanabilirlik (Between / s_IP)")),
+        (5, 4.5, lang_texts.get("flow_extra_unc", "Ekstra Belirsizlikler / Extra Uncertainty")),
+        (5, 3, lang_texts.get("flow_combined", "Kombine Göreli Belirsizlik / u_c")),
+        (5, 1.5, lang_texts.get("flow_expanded", "Genişletilmiş Belirsizlik / U = 2 * u_c * x̄")))
+    ]
+
+    # Kutucukları çiz
+    for x, y, text in boxes:
+        ax.add_patch(FancyBboxPatch((x-3, y-0.5), 6, 1, boxstyle="round,pad=0.3", facecolor="#ADD8E6", edgecolor="black"))
+        ax.text(x, y, text, ha='center', va='center', fontsize=10, wrap=True)
+
+    # Oklar
+    for i in range(len(boxes)-1):
+        x0, y0, _ = boxes[i]
+        x1, y1, _ = boxes[i+1]
+        ax.annotate("", xy=(x1, y1+0.5), xytext=(x0, y0-0.5),
+                    arrowprops=dict(arrowstyle="->", lw=1.5))
+
+    st.pyplot(fig)
+        
+
+
+
+        
         # Sonuç tablosu ve formüller
         results_list = [
             ("Repeatability", f"{repeatability_within_days:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
