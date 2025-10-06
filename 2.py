@@ -309,4 +309,25 @@ def run_paste_mode(lang_texts):
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(measurements, lang_texts)
 
-        pdf_buffer
+        pdf_buffer = create_pdf(results_list, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"],
+                           data=pdf_buffer,
+                           file_name="uncertainty_results.pdf",
+                           mime="application/pdf")
+
+# ------------------------
+# Ana Fonksiyon
+# ------------------------
+def main():
+    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
+    lang_texts = languages[language]
+
+    mode = st.radio("Veri Giriş Yöntemi / Data Input Method", 
+                    ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
+    if mode in ["Elle Giriş", "Manual Input"]:
+        run_manual_mode(lang_texts)
+    else:
+        run_paste_mode(lang_texts)
+
+if __name__ == "__main__":
+    main()
