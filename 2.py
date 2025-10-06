@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
 
 # ------------------------
 # Dil Metinleri
@@ -296,7 +295,11 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 from fpdf import FPDF
+import io
+import matplotlib.pyplot as plt
+
 def create_pdf(results_list, daily_measurements, lang_texts, filename="Uncertainty_Report.pdf"):
     pdf = FPDF()
     pdf.add_page()
@@ -329,6 +332,7 @@ def create_pdf(results_list, daily_measurements, lang_texts, filename="Uncertain
     
     pdf.output(filename)
     return filename
+
 if st.button("PDF Oluştur ve İndir"):
     pdf_file = create_pdf(results_list, total_measurements, lang_texts)
     with open(pdf_file, "rb") as f:
