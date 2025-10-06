@@ -224,7 +224,6 @@ def run_paste_mode(lang_texts):
         "Parametre": [
             "Repeatability",
             "Intermediate Precision",
-            *[label for label, _, _ in extra_uncertainties],
             "Combined Relative Uncertainty",
             "Relative Repeatability",
             "Relative Intermediate Precision",
@@ -233,7 +232,6 @@ def run_paste_mode(lang_texts):
         "Değer": [
             f"{repeatability:.4f}",
             f"{intermediate_precision:.4f}",
-            *[f"{value:.4f}" for _, value, _ in extra_uncertainties],
             f"{combined_relative_unc:.4f}",
             f"{relative_repeatability:.4f}",
             f"{relative_intermediate_precision:.4f}",
