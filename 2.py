@@ -43,15 +43,13 @@ def run_manual_mode():
             measurements.append(value)
         total_measurements.append(measurements)
 
-    all_values = [val for day in total_measurements for val in day]
-    overall_avg = calculate_average(all_values) if all_values else 1  # bölme için default
-
-    # ------------------------
-    # Ekstra Belirsizlik Bütçesi
-    # ------------------------
+    # Ekstra belirsizlik
     num_extra_uncertainties = st.number_input("Ekstra Belirsizlik Bütçesi Sayısı", min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader("Ekstra Belirsizlik Bütçesi")
+    overall_measurements = [val for day in total_measurements for val in day]
+    overall_avg = calculate_average(overall_measurements) if overall_measurements else 1  # bölme için 1 default
+
     for i in range(num_extra_uncertainties):
         label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", value="", key=f"manual_label_{i}")
         if label:
@@ -66,38 +64,31 @@ def run_manual_mode():
             extra_uncertainties.append((label, value, relative_value))
 
     if st.button("Sonuçları Hesapla (Elle Giriş)"):
-        repeatability_within_days = calculate_repeatability([val for day in total_measurements for val in day])
-        repeatability_between_days = calculate_repeatability([calculate_average(day) for day in total_measurements if len(day) > 0])
-        relative_repeatability = repeatability_within_days / overall_avg if overall_avg != 0 else float('nan')
-        relative_intermediate_precision = repeatability_between_days / overall_avg if overall_avg != 0 else float('nan')
+        repeatability_values = []
+        for i, day in enumerate(days):
+            avg = calculate_average(total_measurements[i])
+            uncertainty = calculate_standard_uncertainty(total_measurements[i])
+            repeatability = calculate_repeatability(total_measurements[i])
+            total_uncertainty = np.sqrt(uncertainty**2 + sum([rel[1]**2 for rel in extra_uncertainties]))
+            st.write(f"### {day} Sonuçları")
+            st.write(f"**Ortalama:** {avg:.4f}")
+            st.write(f"**Belirsizlik (Ekstra dahil):** {total_uncertainty:.4f}")
+            st.write(f"**Tekrarlanabilirlik:** {repeatability:.4f}")
+            repeatability_values.extend(total_measurements[i])
+
+        overall_measurements = [val for day in total_measurements for val in day]
+        overall_avg = calculate_average(overall_measurements)
+        repeatability_within_days = calculate_repeatability(repeatability_values)
+        repeatability_between_days = calculate_repeatability([calculate_average(day) for day in total_measurements])
         relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
-        combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
+        combined_relative_unc = np.sqrt((repeatability_within_days/overall_avg)**2 + (repeatability_between_days/overall_avg)**2 + relative_extra_unc**2)
         expanded_overall_uncertainty = 2 * combined_relative_unc * overall_avg
 
-        # Sonuç tablosu
-        results_df = pd.DataFrame({
-            "Parametre": [
-                "Güç İçi Tekrarlanabilirlik",
-                "Günler Arası Tekrarlanabilirlik",
-                *[rel[0] for rel in extra_uncertainties],
-                "Combined Relative Uncertainty"
-            ],
-            "Mutlak Değer": [
-                f"{repeatability_within_days:.4f}",
-                f"{repeatability_between_days:.4f}",
-                *[f"{rel[1]:.4f}" for rel in extra_uncertainties],
-                f"{combined_relative_unc*overall_avg:.4f}"
-            ],
-            "Yüzde (%)": [
-                f"{(relative_repeatability*100):.2f}",
-                f"{(relative_intermediate_precision*100):.2f}",
-                *[f"{rel[2]*100:.2f}" for rel in extra_uncertainties],
-                f"{combined_relative_unc*100:.2f}"
-            ]
-        })
-        st.write("## Sonuçlar")
-        st.dataframe(results_df)
+        st.write("## Genel Sonuçlar")
         st.write(f"**Genel Ortalama:** {overall_avg:.4f}")
+        st.write(f"**Günler Arası Tekrarlanabilirlik:** {repeatability_between_days:.4f}")
+        st.write(f"**Güç İçi Tekrarlanabilirlik:** {repeatability_within_days:.4f}")
+        st.write(f"**Combined Relative Ek Belirsizlik:** {relative_extra_unc:.4f}")
         st.write(f"**Genişletilmiş Genel Belirsizlik (k=2):** {expanded_overall_uncertainty:.4f}")
 
 # ------------------------
@@ -114,6 +105,7 @@ def run_paste_mode():
             "daily_measurements": "Günlük Ölçüm Sonuçları",
             "average_value": "Ortalama Değer",
             "expanded_uncertainty": "Expanded Uncertainty (k=2)",
+            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
             "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
         },
         "English": {
@@ -124,6 +116,7 @@ def run_paste_mode():
             "daily_measurements": "Daily Measurement Results",
             "average_value": "Average Value",
             "expanded_uncertainty": "Expanded Uncertainty (k=2)",
+            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
             "add_uncertainty": "Add Extra Uncertainty Budget"
         }
     }
@@ -154,15 +147,16 @@ def run_paste_mode():
                 group.append(float(val))
             except:
                 continue
-        if group:
-            measurements.append(group)
+        measurements.append(group)
 
     all_values = [val for group in measurements for val in group]
-    overall_avg = np.mean(all_values)
+    if not all_values:
+        st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
+        st.stop()
 
-    # ------------------------
+    overall_avg = np.mean(all_values) if all_values else 1
+
     # Ekstra Belirsizlik Bütçesi
-    # ------------------------
     num_extra_uncertainties = st.number_input("Ekstra Belirsizlik Bütçesi Sayısı", min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(texts[language]["add_uncertainty"])
@@ -179,6 +173,7 @@ def run_paste_mode():
                 value = relative_value * overall_avg
             extra_uncertainties.append((label, value, relative_value))
 
+    # Hesaplamalar
     total_values = sum(len(m) for m in measurements)
     num_groups = len(measurements)
     average_value = np.mean(all_values)
@@ -189,42 +184,47 @@ def run_paste_mode():
     ms_between = ss_between / df_between if df_between > 0 else float('nan')
     ms_within = ss_within / df_within if df_within > 0 else float('nan')
 
-    repeatability_within_days = calc_repeatability_from_ms(ms_within)
-    repeatability_between_days = calc_repeatability([np.mean(m) for m in measurements if len(m) > 0])
-    relative_repeatability = repeatability_within_days / average_value if average_value != 0 else float('nan')
-    relative_intermediate_precision = repeatability_between_days / average_value if average_value != 0 else float('nan')
+    repeatability = calc_repeatability_from_ms(ms_within)
+    intermediate_precision = calc_intermediate_precision(ms_within, ms_between, len(measurements[0]))
+    relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
+    relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
     relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
     combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
-    expanded_overall_uncertainty = 2 * combined_relative_unc * average_value
+    expanded_uncertainty = 2 * combined_relative_unc * average_value
+    relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
 
+    # Sonuç Tablosu
     results_df = pd.DataFrame({
         "Parametre": [
-            "Güç İçi Tekrarlanabilirlik",
-            "Günler Arası Tekrarlanabilirlik",
-            *[rel[0] for rel in extra_uncertainties],
-            "Combined Relative Uncertainty"
+            "Tekrarlanabilirlik",
+            "Intermediate Precision",
+            *[label for label, _, _ in extra_uncertainties],
+            "Combined Relative Uncertainty",
+            "Relative Repeatability",
+            "Relative Intermediate Precision",
+            "Relative Ek Belirsizlik"
         ],
-        "Mutlak Değer": [
-            f"{repeatability_within_days:.4f}",
-            f"{repeatability_between_days:.4f}",
-            *[f"{rel[1]:.4f}" for rel in extra_uncertainties],
-            f"{combined_relative_unc*average_value:.4f}"
-        ],
-        "Yüzde (%)": [
-            f"{(relative_repeatability*100):.2f}",
-            f"{(relative_intermediate_precision*100):.2f}",
-            *[f"{rel[2]*100:.2f}" for rel in extra_uncertainties],
-            f"{combined_relative_unc*100:.2f}"
+        "Değer": [
+            f"{repeatability:.4f}",
+            f"{intermediate_precision:.4f}",
+            *[f"{value:.4f}" for _, value, _ in extra_uncertainties],
+            f"{combined_relative_unc:.4f}",
+            f"{relative_repeatability:.4f}",
+            f"{relative_intermediate_precision:.4f}",
+            f"{relative_extra_unc:.4f}"
         ]
     })
+
+    additional_row = pd.DataFrame({
+        "Parametre": [texts[language]["average_value"], texts[language]["expanded_uncertainty"], texts[language]["relative_expanded_uncertainty"]],
+        "Değer": [f"{average_value:.4f}", f"{expanded_uncertainty:.4f}", f"{relative_expanded_uncertainty:.4f}"]
+    })
+
+    results_df = pd.concat([results_df, additional_row], ignore_index=True)
     st.write(texts[language]["results"])
     st.dataframe(results_df)
-    st.write(f"**Genel Ortalama:** {average_value:.4f}")
-    st.write(f"**Genişletilmiş Genel Belirsizlik (k=2):** {expanded_overall_uncertainty:.4f}")
 
-    # ------------------------
     # Günlük Grafik
-    # ------------------------
     fig1, ax1 = plt.subplots()
     for i, group in enumerate(measurements):
         ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
