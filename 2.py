@@ -1,9 +1,8 @@
-import numpy as np
+import numpy as np 
 import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch
 
 # ------------------------
 # Dil Metinleri
@@ -30,14 +29,7 @@ languages = {
         "paste_area": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
         "results": "Sonuçlar",
         "daily_measurements": "Günlük Ölçüm Sonuçları",
-        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle",
-        # Akış şeması
-        "flow_measurements": "Ölçümler",
-        "flow_repeatability_within": "Tekrarlanabilirlik (Within / s)",
-        "flow_repeatability_between": "Günler Arası Tekrarlanabilirlik (Between / s_IP)",
-        "flow_extra_unc": "Ekstra Belirsizlikler",
-        "flow_combined": "Kombine Göreli Belirsizlik / u_c",
-        "flow_expanded": "Genişletilmiş Belirsizlik / U = 2 * u_c * x̄"
+        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -60,14 +52,7 @@ languages = {
         "paste_area": "Paste data here (columns = days)",
         "results": "Results",
         "daily_measurements": "Daily Measurement Results",
-        "add_uncertainty": "Add Extra Uncertainty Budget",
-        # Flowchart
-        "flow_measurements": "Measurements",
-        "flow_repeatability_within": "Repeatability (Within / s)",
-        "flow_repeatability_between": "Repeatability Between Days (s_IP)",
-        "flow_extra_unc": "Extra Uncertainty",
-        "flow_combined": "Combined Relative Uncertainty / u_c",
-        "flow_expanded": "Expanded Uncertainty / U = 2 * u_c * x̄"
+        "add_uncertainty": "Add Extra Uncertainty Budget"
     }
 }
 
@@ -95,56 +80,33 @@ def calc_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 # ------------------------
-# Formül ve Tablo Gösterimi
+# Formüller ve Tablo Gösterimi
 # ------------------------
-def display_results_with_formulas(results_list, title="Results", lang_texts=None):
+def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
+    
     # Tabloyu göster
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=["Parametre", "Değer"])
+    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=[lang_texts["results"], "Değer"])
     st.dataframe(df_values)
+
     # Formüller
-    st.write(f"### {lang_texts['results']} Formüller" if lang_texts else "Formüller")
+    st.write(f"### Formüller")
     for param, _, formula in results_list:
         st.markdown(f"**{param}:** ${formula}$", unsafe_allow_html=True)
 
 # ------------------------
-# Günlük Grafik
+# Günlük Grafik Fonksiyonu
 # ------------------------
 def plot_daily_measurements(measurements, lang_texts):
-    fig1, ax1 = plt.subplots()
+    fig, ax = plt.subplots()
     for i, group in enumerate(measurements):
-        ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"{lang_texts['flow_measurements']} {i+1}")
-    ax1.set_xlabel(lang_texts["daily_measurements"])
-    ax1.set_ylabel("Value")
-    ax1.set_xticks(range(1, len(measurements[0])+1))
-    ax1.set_title(lang_texts["daily_measurements"])
-    ax1.legend()
-    st.pyplot(fig1)
-
-# ------------------------
-# Akış Şeması Görseli
-# ------------------------
-def plot_formula_flowchart(lang_texts):
-    fig, ax = plt.subplots(figsize=(6, 8))
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    ax.axis('off')
-    boxes = [
-        (5, 9, lang_texts["flow_measurements"]),
-        (5, 7.5, lang_texts["flow_repeatability_within"]),
-        (5, 6, lang_texts["flow_repeatability_between"]),
-        (5, 4.5, lang_texts["flow_extra_unc"]),
-        (5, 3, lang_texts["flow_combined"]),
-        (5, 1.5, lang_texts["flow_expanded"])
-    ]
-    for x, y, text in boxes:
-        ax.add_patch(FancyBboxPatch((x-3, y-0.5), 6, 1, boxstyle="round,pad=0.3", facecolor="#ADD8E6", edgecolor="black"))
-        ax.text(x, y, text, ha='center', va='center', fontsize=10, wrap=True)
-    for i in range(len(boxes)-1):
-        x0, y0, _ = boxes[i]
-        x1, y1, _ = boxes[i+1]
-        ax.annotate("", xy=(x1, y1+0.5), xytext=(x0, y0-0.5),
-                    arrowprops=dict(arrowstyle="->", lw=1.5))
+        label = f"{'Gün' if lang_texts['manual_header']=='Elle Veri Girişi Modu' else 'Day'} {i+1}"
+        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
+    ax.set_xticks(range(1, max(len(g) for g in measurements)+1))  # x ekseni tam sayı
+    ax.set_xlabel("Ölçüm Sayısı" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Measurement Number")
+    ax.set_ylabel("Değer" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Value")
+    ax.set_title(lang_texts["daily_measurements"])
+    ax.legend()
     st.pyplot(fig)
 
 # ------------------------
@@ -157,14 +119,18 @@ def run_manual_mode(lang_texts):
 
     for day in days:
         st.subheader(lang_texts["manual_subheader"].format(day))
-        measurements = [st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}") for i in range(5)]
+        measurements = []
+        for i in range(5):
+            value = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
+            measurements.append(value)
         total_measurements.append(measurements)
 
     # Ekstra belirsizlik
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["extra_uncert_label"])
-    overall_avg = calculate_average([val for day in total_measurements for val in day]) or 1
+    overall_measurements = [val for day in total_measurements for val in day]
+    overall_avg = calculate_average(overall_measurements) if overall_measurements else 1
 
     for i in range(num_extra_uncertainties):
         label = st.text_input(f"Extra Uncertainty {i+1} Name", value="", key=f"manual_label_{i}")
@@ -180,23 +146,29 @@ def run_manual_mode(lang_texts):
             extra_uncertainties.append((label, value, relative_value, input_type))
 
     if st.button(lang_texts["calculate_button"]):
+        repeatability_values = []
+        for i, day in enumerate(days):
+            repeatability_values.extend(total_measurements[i])
+
         overall_measurements = [val for day in total_measurements for val in day]
         overall_avg = calculate_average(overall_measurements)
-        repeatability_within_days = calculate_repeatability(overall_measurements)
+        repeatability_within_days = calculate_repeatability(repeatability_values)
         repeatability_between_days = calculate_repeatability([calculate_average(day) for day in total_measurements])
         relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
         combined_relative_unc = np.sqrt((repeatability_within_days/overall_avg)**2 + (repeatability_between_days/overall_avg)**2 + relative_extra_unc**2)
         expanded_overall_uncertainty = 2 * combined_relative_unc * overall_avg
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_overall_uncertainty, overall_avg)
 
-        # Sonuç listesi
+        # Sonuç tablosu ve formüller
         results_list = [
             ("Repeatability", f"{repeatability_within_days:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
             ("Intermediate Precision", f"{repeatability_between_days:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}")
         ]
+
         for label, value, rel_val, input_type in extra_uncertainties:
             if input_type == lang_texts["percent"]:
                 results_list.append((label, f"{value:.4f}", r"u_{extra} = \frac{\text{Percent}}{100} \cdot \bar{x}"))
+
         results_list.extend([
             ("Combined Relative Uncertainty", f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_{repeat}^2 + u_{IP}^2 + u_{extra}^2}"),
             ("Relative Repeatability", f"{repeatability_within_days/overall_avg:.4f}", r"u_{repeat,rel} = \frac{s}{\bar{x}}"),
@@ -206,9 +178,9 @@ def run_manual_mode(lang_texts):
             (lang_texts["expanded_uncertainty"], f"{expanded_overall_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
             (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
         ])
+
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(total_measurements, lang_texts)
-        plot_formula_flowchart(lang_texts)
 
 # ------------------------
 # Yapıştırarak Giriş Modu
@@ -219,21 +191,35 @@ def run_paste_mode(lang_texts):
     pasted_data = st.text_area(lang_texts["paste_area"])
     if not pasted_data:
         st.stop()
+
     try:
         pasted_data = pasted_data.replace(',', '.')
         df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         st.stop()
+
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
-    measurements = [[float(val) for val in df[col]] for col in df.columns]
+
+    measurements = []
+    for col in df.columns:
+        group = []
+        for val in df[col]:
+            try:
+                group.append(float(val))
+            except:
+                continue
+        measurements.append(group)
+
     all_values = [val for group in measurements for val in group]
     if not all_values:
         st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
         st.stop()
+
     overall_avg = np.mean(all_values) if all_values else 1
-    # Ekstra belirsizlik
+
+    # Ekstra Belirsizlik
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -249,6 +235,7 @@ def run_paste_mode(lang_texts):
                 relative_value = percent_value / 100
                 value = relative_value * overall_avg
             extra_uncertainties.append((label, value, relative_value, input_type))
+
     if st.button(lang_texts["calculate_button"]):
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
@@ -259,6 +246,7 @@ def run_paste_mode(lang_texts):
         df_within = total_values - num_groups
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
+
         repeatability = calc_repeatability_from_ms(ms_within)
         intermediate_precision = calc_intermediate_precision(ms_within, ms_between, len(measurements[0]))
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
@@ -267,13 +255,17 @@ def run_paste_mode(lang_texts):
         combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
         expanded_uncertainty = 2 * combined_relative_unc * average_value
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
+
+        # Sonuç tablosu ve formüller
         results_list = [
             ("Repeatability", f"{repeatability:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
             ("Intermediate Precision", f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}")
         ]
+
         for label, value, rel_val, input_type in extra_uncertainties:
             if input_type == lang_texts["percent"]:
                 results_list.append((label, f"{value:.4f}", r"u_{extra} = \frac{\text{Percent}}{100} \cdot \bar{x}"))
+
         results_list.extend([
             ("Combined Relative Uncertainty", f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_{repeat}^2 + u_{IP}^2 + u_{extra}^2}"),
             ("Relative Repeatability", f"{relative_repeatability:.4f}", r"u_{repeat,rel} = \frac{s}{\bar{x}}"),
@@ -283,9 +275,9 @@ def run_paste_mode(lang_texts):
             (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
             (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
         ])
+
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(measurements, lang_texts)
-        plot_formula_flowchart(lang_texts)
 
 # ------------------------
 # Ana Fonksiyon
@@ -293,6 +285,7 @@ def run_paste_mode(lang_texts):
 def main():
     language = st.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[language]
+
     mode = st.radio("Veri Giriş Yöntemi / Data Input Method", 
                     ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
     if mode in ["Elle Giriş", "Manual Input"]:
