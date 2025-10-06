@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np 
 import streamlit as st
 import pandas as pd
 import io
@@ -16,7 +16,7 @@ languages = {
         "extra_uncert_type": "{} için tür seçin",
         "absolute": "Mutlak Değer",
         "percent": "Yüzde",
-        "calculate_button": "Sonuçları Hesapla (Elle Giriş)",
+        "calculate_button": "Sonuçları Hesapla",
         "overall_results": "Genel Sonuçlar",
         "average_value": "Ortalama Değer",
         "repeatability_within": "Güç İçi Tekrarlanabilirlik",
@@ -39,7 +39,7 @@ languages = {
         "extra_uncert_type": "Select type for {}",
         "absolute": "Absolute Value",
         "percent": "Percent",
-        "calculate_button": "Calculate Results (Manual Input)",
+        "calculate_button": "Calculate Results",
         "overall_results": "Overall Results",
         "average_value": "Average Value",
         "repeatability_within": "Repeatability Within Days",
@@ -80,19 +80,34 @@ def calc_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 # ------------------------
-# MathJax ile Formül Gösterimi
+# Formüller ve Tablo Gösterimi
 # ------------------------
-def display_results_with_formulas(results_list, title="Results"):
+def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
     
-    # Tabloyu göster (sayısal değerler)
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=["Parametre", "Değer"])
+    # Tabloyu göster
+    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=[lang_texts["results"], "Değer"])
     st.dataframe(df_values)
 
-    # Formülleri MathJax ile göster
-    st.write("### Formüller")
+    # Formüller
+    st.write(f"### Formüller")
     for param, _, formula in results_list:
         st.markdown(f"**{param}:** ${formula}$", unsafe_allow_html=True)
+
+# ------------------------
+# Günlük Grafik Fonksiyonu
+# ------------------------
+def plot_daily_measurements(measurements, lang_texts):
+    fig, ax = plt.subplots()
+    for i, group in enumerate(measurements):
+        label = f"{'Gün' if lang_texts['manual_header']=='Elle Veri Girişi Modu' else 'Day'} {i+1}"
+        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
+    ax.set_xticks(range(1, max(len(g) for g in measurements)+1))  # x ekseni tam sayı
+    ax.set_xlabel("Ölçüm Sayısı" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Measurement Number")
+    ax.set_ylabel("Değer" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Value")
+    ax.set_title(lang_texts["daily_measurements"])
+    ax.legend()
+    st.pyplot(fig)
 
 # ------------------------
 # Elle Giriş Modu
@@ -150,7 +165,6 @@ def run_manual_mode(lang_texts):
             ("Intermediate Precision", f"{repeatability_between_days:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}")
         ]
 
-        # Ekstra belirsizlik yüzdeleri tabloya eklenir
         for label, value, rel_val, input_type in extra_uncertainties:
             if input_type == lang_texts["percent"]:
                 results_list.append((label, f"{value:.4f}", r"u_{extra} = \frac{\text{Percent}}{100} \cdot \bar{x}"))
@@ -165,17 +179,8 @@ def run_manual_mode(lang_texts):
             (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
         ])
 
-        display_results_with_formulas(results_list, title=lang_texts["overall_results"])
-
-        # Günlük Grafik
-        fig1, ax1 = plt.subplots()
-        for i, group in enumerate(total_measurements):
-            ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-        ax1.set_xlabel("Ölçüm Sayısı")
-        ax1.set_ylabel("Değer")
-        ax1.set_title(lang_texts["daily_measurements"])
-        ax1.legend()
-        st.pyplot(fig1)
+        display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
+        plot_daily_measurements(total_measurements, lang_texts)
 
 # ------------------------
 # Yapıştırarak Giriş Modu
@@ -271,17 +276,8 @@ def run_paste_mode(lang_texts):
             (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
         ])
 
-        display_results_with_formulas(results_list, title=lang_texts["results"])
-
-        # Günlük Grafik
-        fig1, ax1 = plt.subplots()
-        for i, group in enumerate(measurements):
-            ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-        ax1.set_xlabel("Ölçüm Sayısı")
-        ax1.set_ylabel("Değer")
-        ax1.set_title(lang_texts["daily_measurements"])
-        ax1.legend()
-        st.pyplot(fig1)
+        display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
+        plot_daily_measurements(measurements, lang_texts)
 
 # ------------------------
 # Ana Fonksiyon
