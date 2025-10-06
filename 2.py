@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
-from fpdf import FPDF
 import matplotlib.pyplot as plt
 
 # ------------------------
@@ -297,7 +296,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+from fpdf import FPDF
 def create_pdf(results_list, daily_measurements, lang_texts, filename="Uncertainty_Report.pdf"):
     pdf = FPDF()
     pdf.add_page()
