@@ -5,6 +5,62 @@ import io
 import matplotlib.pyplot as plt
 
 # ------------------------
+# Dil Metinleri
+# ------------------------
+languages = {
+    "Türkçe": {
+        "manual_header": "Elle Veri Girişi Modu",
+        "manual_subheader": "{} İçin Ölçüm Sonucu Girin",
+        "extra_uncert_label": "Ekstra Belirsizlik Bütçesi",
+        "extra_uncert_count": "Ekstra Belirsizlik Bütçesi Sayısı",
+        "extra_uncert_type": "{} için tür seçin",
+        "absolute": "Mutlak Değer",
+        "percent": "Yüzde",
+        "calculate_button": "Sonuçları Hesapla (Elle Giriş)",
+        "overall_results": "Genel Sonuçlar",
+        "average": "Genel Ortalama",
+        "repeatability_within": "Güç İçi Tekrarlanabilirlik",
+        "repeatability_between": "Günler Arası Tekrarlanabilirlik",
+        "combined_relative_unc": "Combined Relative Ek Belirsizlik",
+        "expanded_uncertainty": "Genişletilmiş Genel Belirsizlik (k=2)",
+        "paste_title": "Belirsizlik Hesaplama Uygulaması",
+        "paste_subtitle": "B. Yalçınkaya tarafından geliştirildi",
+        "paste_area": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
+        "results": "Sonuçlar",
+        "daily_measurements": "Günlük Ölçüm Sonuçları",
+        "average_value": "Ortalama Değer",
+        "expanded_uncertainty_col": "Expanded Uncertainty (k=2)",
+        "relative_expanded_uncertainty_col": "Relative Expanded Uncertainty (%)",
+        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
+    },
+    "English": {
+        "manual_header": "Manual Input Mode",
+        "manual_subheader": "Enter Measurements for {}",
+        "extra_uncert_label": "Extra Uncertainty Budget",
+        "extra_uncert_count": "Number of Extra Uncertainty Budgets",
+        "extra_uncert_type": "Select type for {}",
+        "absolute": "Absolute Value",
+        "percent": "Percent",
+        "calculate_button": "Calculate Results (Manual Input)",
+        "overall_results": "Overall Results",
+        "average": "Average Value",
+        "repeatability_within": "Repeatability Within Days",
+        "repeatability_between": "Repeatability Between Days",
+        "combined_relative_unc": "Combined Relative Extra Uncertainty",
+        "expanded_uncertainty": "Expanded Overall Uncertainty (k=2)",
+        "paste_title": "Uncertainty Calculation Application",
+        "paste_subtitle": "Developed by B. Yalçınkaya",
+        "paste_area": "Paste data here (columns = days)",
+        "results": "Results",
+        "daily_measurements": "Daily Measurement Results",
+        "average_value": "Average Value",
+        "expanded_uncertainty_col": "Expanded Uncertainty (k=2)",
+        "relative_expanded_uncertainty_col": "Relative Expanded Uncertainty (%)",
+        "add_uncertainty": "Add Extra Uncertainty Budget"
+    }
+}
+
+# ------------------------
 # Hesaplama Fonksiyonları
 # ------------------------
 def calculate_average(measurements):
@@ -30,13 +86,13 @@ def calc_relative_expanded_uncertainty(expanded_uncertainty, average_value):
 # ------------------------
 # Elle Giriş Modu
 # ------------------------
-def run_manual_mode():
-    st.header("Elle Veri Girişi Modu")
+def run_manual_mode(lang_texts):
+    st.header(lang_texts["manual_header"])
     days = ['1. Gün', '2. Gün', '3. Gün']
     total_measurements = []
 
     for day in days:
-        st.subheader(f"{day} İçin Ölçüm Sonucu Girin")
+        st.subheader(lang_texts["manual_subheader"].format(day))
         measurements = []
         for i in range(5):
             value = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
@@ -44,36 +100,36 @@ def run_manual_mode():
         total_measurements.append(measurements)
 
     # Ekstra belirsizlik
-    num_extra_uncertainties = st.number_input("Ekstra Belirsizlik Bütçesi Sayısı", min_value=0, max_value=10, value=0, step=1)
+    num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
-    st.subheader("Ekstra Belirsizlik Bütçesi")
+    st.subheader(lang_texts["extra_uncert_label"])
     overall_measurements = [val for day in total_measurements for val in day]
-    overall_avg = calculate_average(overall_measurements) if overall_measurements else 1  # bölme için 1 default
+    overall_avg = calculate_average(overall_measurements) if overall_measurements else 1
 
     for i in range(num_extra_uncertainties):
-        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", value="", key=f"manual_label_{i}")
+        label = st.text_input(f"Extra Uncertainty {i+1} Name", value="", key=f"manual_label_{i}")
         if label:
-            input_type = st.radio(f"{label} için tür seçin", ["Mutlak Değer", "Yüzde"], key=f"manual_type_{i}")
-            if input_type == "Mutlak Değer":
-                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
+            input_type = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"manual_type_{i}")
+            if input_type == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Value", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
                 relative_value = value / overall_avg if overall_avg != 0 else 0
             else:
-                percent_value = st.number_input(f"{label} Yüzde (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
+                percent_value = st.number_input(f"{label} Percent (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
                 relative_value = percent_value / 100
                 value = relative_value * overall_avg
             extra_uncertainties.append((label, value, relative_value))
 
-    if st.button("Sonuçları Hesapla (Elle Giriş)"):
+    if st.button(lang_texts["calculate_button"]):
         repeatability_values = []
         for i, day in enumerate(days):
             avg = calculate_average(total_measurements[i])
             uncertainty = calculate_standard_uncertainty(total_measurements[i])
             repeatability = calculate_repeatability(total_measurements[i])
             total_uncertainty = np.sqrt(uncertainty**2 + sum([rel[1]**2 for rel in extra_uncertainties]))
-            st.write(f"### {day} Sonuçları")
-            st.write(f"**Ortalama:** {avg:.4f}")
-            st.write(f"**Belirsizlik (Ekstra dahil):** {total_uncertainty:.4f}")
-            st.write(f"**Tekrarlanabilirlik:** {repeatability:.4f}")
+            st.write(f"### {day} Results")
+            st.write(f"**Average:** {avg:.4f}")
+            st.write(f"**Uncertainty (incl. extra):** {total_uncertainty:.4f}")
+            st.write(f"**Repeatability:** {repeatability:.4f}")
             repeatability_values.extend(total_measurements[i])
 
         overall_measurements = [val for day in total_measurements for val in day]
@@ -84,56 +140,30 @@ def run_manual_mode():
         combined_relative_unc = np.sqrt((repeatability_within_days/overall_avg)**2 + (repeatability_between_days/overall_avg)**2 + relative_extra_unc**2)
         expanded_overall_uncertainty = 2 * combined_relative_unc * overall_avg
 
-        st.write("## Genel Sonuçlar")
-        st.write(f"**Genel Ortalama:** {overall_avg:.4f}")
-        st.write(f"**Günler Arası Tekrarlanabilirlik:** {repeatability_between_days:.4f}")
-        st.write(f"**Güç İçi Tekrarlanabilirlik:** {repeatability_within_days:.4f}")
-        st.write(f"**Combined Relative Ek Belirsizlik:** {relative_extra_unc:.4f}")
-        st.write(f"**Genişletilmiş Genel Belirsizlik (k=2):** {expanded_overall_uncertainty:.4f}")
+        st.write(f"## {lang_texts['overall_results']}")
+        st.write(f"**{lang_texts['average']}:** {overall_avg:.4f}")
+        st.write(f"**{lang_texts['repeatability_between']}:** {repeatability_between_days:.4f}")
+        st.write(f"**{lang_texts['repeatability_within']}:** {repeatability_within_days:.4f}")
+        st.write(f"**{lang_texts['combined_relative_unc']}:** {relative_extra_unc:.4f}")
+        st.write(f"**{lang_texts['expanded_uncertainty']}:** {expanded_overall_uncertainty:.4f}")
 
 # ------------------------
 # Yapıştırarak Giriş Modu
 # ------------------------
-def run_paste_mode():
-    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
-    texts = {
-        "Türkçe": {
-            "title": "Belirsizlik Hesaplama Uygulaması",
-            "subtitle": "B. Yalçınkaya tarafından geliştirildi",
-            "paste": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
-            "results": "Sonuçlar",
-            "daily_measurements": "Günlük Ölçüm Sonuçları",
-            "average_value": "Ortalama Değer",
-            "expanded_uncertainty": "Expanded Uncertainty (k=2)",
-            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
-            "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
-        },
-        "English": {
-            "title": "Uncertainty Calculation Application",
-            "subtitle": "Developed by B. Yalçınkaya",
-            "paste": "Paste data here",
-            "results": "Results",
-            "daily_measurements": "Daily Measurement Results",
-            "average_value": "Average Value",
-            "expanded_uncertainty": "Expanded Uncertainty (k=2)",
-            "relative_expanded_uncertainty": "Relative Expanded Uncertainty (%)",
-            "add_uncertainty": "Add Extra Uncertainty Budget"
-        }
-    }
-
-    st.title(texts[language]["title"])
-    st.caption(texts[language]["subtitle"])
-    pasted_data = st.text_area(texts[language]["paste"])
+def run_paste_mode(lang_texts):
+    st.title(lang_texts["paste_title"])
+    st.caption(lang_texts["paste_subtitle"])
+    pasted_data = st.text_area(lang_texts["paste_area"])
 
     if not pasted_data:
-        st.error("Lütfen veri yapıştırın!")
+        st.error("Please paste data!")
         st.stop()
 
     try:
         pasted_data = pasted_data.replace(',', '.')
         df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
     except Exception as e:
-        st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+        st.error(f"Error! ({str(e)})")
         st.stop()
 
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
@@ -150,25 +180,21 @@ def run_paste_mode():
         measurements.append(group)
 
     all_values = [val for group in measurements for val in group]
-    if not all_values:
-        st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
-        st.stop()
-
     overall_avg = np.mean(all_values) if all_values else 1
 
-    # Ekstra Belirsizlik Bütçesi
-    num_extra_uncertainties = st.number_input("Ekstra Belirsizlik Bütçesi Sayısı", min_value=0, max_value=10, value=0, step=1)
+    # Ekstra Belirsizlik
+    num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
-    st.subheader(texts[language]["add_uncertainty"])
+    st.subheader(lang_texts["add_uncertainty"])
     for i in range(num_extra_uncertainties):
-        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", value="", key=f"paste_label_{i}")
+        label = st.text_input(f"Extra Uncertainty {i+1} Name", value="", key=f"paste_label_{i}")
         if label:
-            input_type = st.radio(f"{label} için tür seçin", ["Mutlak Değer", "Yüzde"], key=f"paste_type_{i}")
-            if input_type == "Mutlak Değer":
-                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"paste_val_{i}")
+            input_type = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"paste_type_{i}")
+            if input_type == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Value", min_value=0.0, value=0.0, step=0.01, key=f"paste_val_{i}")
                 relative_value = value / overall_avg if overall_avg != 0 else 0
             else:
-                percent_value = st.number_input(f"{label} Yüzde (%)", min_value=0.0, value=0.0, step=0.01, key=f"paste_percent_{i}")
+                percent_value = st.number_input(f"{label} Percent (%)", min_value=0.0, value=0.0, step=0.01, key=f"paste_percent_{i}")
                 relative_value = percent_value / 100
                 value = relative_value * overall_avg
             extra_uncertainties.append((label, value, relative_value))
@@ -196,13 +222,13 @@ def run_paste_mode():
     # Sonuç Tablosu
     results_df = pd.DataFrame({
         "Parametre": [
-            "Tekrarlanabilirlik",
+            "Repeatability",
             "Intermediate Precision",
             *[label for label, _, _ in extra_uncertainties],
             "Combined Relative Uncertainty",
             "Relative Repeatability",
             "Relative Intermediate Precision",
-            "Relative Ek Belirsizlik"
+            "Relative Extra Uncertainty"
         ],
         "Değer": [
             f"{repeatability:.4f}",
@@ -216,21 +242,21 @@ def run_paste_mode():
     })
 
     additional_row = pd.DataFrame({
-        "Parametre": [texts[language]["average_value"], texts[language]["expanded_uncertainty"], texts[language]["relative_expanded_uncertainty"]],
+        "Parametre": [lang_texts["average_value"], lang_texts["expanded_uncertainty_col"], lang_texts["relative_expanded_uncertainty_col"]],
         "Değer": [f"{average_value:.4f}", f"{expanded_uncertainty:.4f}", f"{relative_expanded_uncertainty:.4f}"]
     })
 
     results_df = pd.concat([results_df, additional_row], ignore_index=True)
-    st.write(texts[language]["results"])
+    st.write(lang_texts["results"])
     st.dataframe(results_df)
 
     # Günlük Grafik
     fig1, ax1 = plt.subplots()
     for i, group in enumerate(measurements):
-        ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"Gün {i+1}")
-    ax1.set_xlabel("Ölçüm Sayısı")
-    ax1.set_ylabel("Değer")
-    ax1.set_title(texts[language]["daily_measurements"])
+        ax1.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"Day {i+1}")
+    ax1.set_xlabel("Measurement Number")
+    ax1.set_ylabel("Value")
+    ax1.set_title(lang_texts["daily_measurements"])
     ax1.legend()
     st.pyplot(fig1)
 
@@ -238,11 +264,14 @@ def run_paste_mode():
 # Ana Fonksiyon
 # ------------------------
 def main():
-    mode = st.radio("Veri Giriş Yöntemi / Data Input Method", ["Elle Giriş", "Yapıştırarak Giriş"])
-    if mode == "Elle Giriş":
-        run_manual_mode()
+    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
+    lang_texts = languages[language]
+
+    mode = st.radio(lang_texts["paste_area"], ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
+    if mode in ["Elle Giriş", "Manual Input"]:
+        run_manual_mode(lang_texts)
     else:
-        run_paste_mode()
+        run_paste_mode(lang_texts)
 
 if __name__ == "__main__":
     main()
