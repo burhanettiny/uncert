@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
+from fpdf import FPDF
+import matplotlib.pyplot as plt
 
 # ------------------------
 # Dil Metinleri
@@ -295,3 +297,40 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+def create_pdf(results_list, daily_measurements, lang_texts, filename="Uncertainty_Report.pdf"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, lang_texts["overall_results"], ln=True, align="C")
+    
+    pdf.set_font("Arial", "", 12)
+    pdf.ln(5)
+    
+    # Sonuç tablosu
+    for param, value, formula in results_list:
+        pdf.multi_cell(0, 8, f"{param}: {value}   |  Formula: {formula}")
+    
+    pdf.ln(10)
+    
+    # Günlük grafiği PDF'ye ekleme
+    fig, ax = plt.subplots()
+    for i, group in enumerate(daily_measurements):
+        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=f"{lang_texts['flow_measurements']} {i+1}")
+    ax.set_xlabel("Measurement Number")
+    ax.set_ylabel("Value")
+    ax.set_title(lang_texts["daily_measurements"])
+    ax.legend()
+    
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    pdf.image(buf, x=10, y=pdf.get_y(), w=180)
+    buf.close()
+    
+    pdf.output(filename)
+    return filename
+if st.button("PDF Oluştur ve İndir"):
+    pdf_file = create_pdf(results_list, total_measurements, lang_texts)
+    with open(pdf_file, "rb") as f:
+        st.download_button("PDF İndir", f, file_name=pdf_file, mime="application/pdf")
