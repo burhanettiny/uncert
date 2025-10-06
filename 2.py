@@ -100,7 +100,7 @@ def run_paste_mode():
         "Türkçe": {
             "title": "Belirsizlik Hesaplama Uygulaması",
             "subtitle": "B. Yalçınkaya tarafından geliştirildi",
-            "paste": "Verileri buraya yapıştırın",
+            "paste": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
             "results": "Sonuçlar",
             "daily_measurements": "Günlük Ölçüm Sonuçları",
             "average_value": "Ortalama Değer",
