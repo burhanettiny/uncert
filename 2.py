@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import io
 import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
 # ------------------------
 # Dil Metinleri
@@ -29,7 +31,8 @@ languages = {
         "paste_area": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
         "results": "Sonuçlar",
         "daily_measurements": "Günlük Ölçüm Sonuçları",
-        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle"
+        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle",
+        "download_pdf": "PDF İndir"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -52,7 +55,8 @@ languages = {
         "paste_area": "Paste data here (columns = days)",
         "results": "Results",
         "daily_measurements": "Daily Measurement Results",
-        "add_uncertainty": "Add Extra Uncertainty Budget"
+        "add_uncertainty": "Add Extra Uncertainty Budget",
+        "download_pdf": "Download PDF"
     }
 }
 
@@ -80,19 +84,40 @@ def calc_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else float('nan')
 
 # ------------------------
+# PDF Oluşturma Fonksiyonu
+# ------------------------
+def create_pdf(results_list, lang_texts, filename="results.pdf"):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    c.setFont("Helvetica", 12)
+    
+    y = height - 50
+    c.drawString(50, y, lang_texts["results"])
+    y -= 30
+
+    for param, value, formula in results_list:
+        c.drawString(50, y, f"{param}: {value}   Formula: {formula}")
+        y -= 20
+        if y < 50:  # yeni sayfa
+            c.showPage()
+            y = height - 50
+    
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+# ------------------------
 # Formüller ve Tablo Gösterimi
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
-    
-    # Tabloyu göster
     df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=[lang_texts["results"], "Değer"])
     st.dataframe(df_values)
-
-    # Formüller
     st.write(f"### Formüller")
     for param, _, formula in results_list:
         st.markdown(f"**{param}:** ${formula}$", unsafe_allow_html=True)
+    return df_values
 
 # ------------------------
 # Günlük Grafik Fonksiyonu
@@ -102,7 +127,7 @@ def plot_daily_measurements(measurements, lang_texts):
     for i, group in enumerate(measurements):
         label = f"{'Gün' if lang_texts['manual_header']=='Elle Veri Girişi Modu' else 'Day'} {i+1}"
         ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
-    ax.set_xticks(range(1, max(len(g) for g in measurements)+1))  # x ekseni tam sayı
+    ax.set_xticks(range(1, max(len(g) for g in measurements)+1))
     ax.set_xlabel("Ölçüm Sayısı" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Measurement Number")
     ax.set_ylabel("Değer" if lang_texts['manual_header']=='Elle Veri Girişi Modu' else "Value")
     ax.set_title(lang_texts["daily_measurements"])
@@ -159,7 +184,6 @@ def run_manual_mode(lang_texts):
         expanded_overall_uncertainty = 2 * combined_relative_unc * overall_avg
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_overall_uncertainty, overall_avg)
 
-        # Sonuç tablosu ve formüller
         results_list = [
             ("Repeatability", f"{repeatability_within_days:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
             ("Intermediate Precision", f"{repeatability_between_days:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}")
@@ -181,6 +205,13 @@ def run_manual_mode(lang_texts):
 
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(total_measurements, lang_texts)
+
+        # PDF İndir butonu
+        pdf_buffer = create_pdf(results_list, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"],
+                           data=pdf_buffer,
+                           file_name="uncertainty_results.pdf",
+                           mime="application/pdf")
 
 # ------------------------
 # Yapıştırarak Giriş Modu
@@ -256,7 +287,6 @@ def run_paste_mode(lang_texts):
         expanded_uncertainty = 2 * combined_relative_unc * average_value
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
 
-        # Sonuç tablosu ve formüller
         results_list = [
             ("Repeatability", f"{repeatability:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
             ("Intermediate Precision", f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}")
@@ -279,19 +309,4 @@ def run_paste_mode(lang_texts):
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(measurements, lang_texts)
 
-# ------------------------
-# Ana Fonksiyon
-# ------------------------
-def main():
-    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
-    lang_texts = languages[language]
-
-    mode = st.radio("Veri Giriş Yöntemi / Data Input Method", 
-                    ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
-    if mode in ["Elle Giriş", "Manual Input"]:
-        run_manual_mode(lang_texts)
-    else:
-        run_paste_mode(lang_texts)
-
-if __name__ == "__main__":
-    main()
+        pdf_buffer
