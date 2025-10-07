@@ -21,11 +21,11 @@ languages = {
         "calculate_button": "Sonuçları Hesapla",
         "overall_results": "Genel Sonuçlar",
         "average_value": "Ortalama Değer",
-        "repeatability_within": "Gün İçi Tekrarlanabilirlik",
+        "repeatability_within": "Güç İçi Tekrarlanabilirlik",
         "repeatability_between": "Günler Arası Tekrarlanabilirlik",
         "combined_relative_unc": "Combined Relative Ek Belirsizlik",
         "expanded_uncertainty": "Genişletilmiş Genel Belirsizlik (k=2)",
-        "relative_expanded_uncertainty_col": "Göreceli Genişletilmiş Belirsizlik (%)",
+        "relative_expanded_uncertainty_col": "Relative Expanded Uncertainty (%)",
         "paste_title": "Belirsizlik Hesaplama Uygulaması",
         "paste_subtitle": "B. Yalçınkaya tarafından geliştirildi",
         "paste_area": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
@@ -64,7 +64,10 @@ languages = {
 # Hesaplama Fonksiyonları
 # ------------------------
 def calculate_average(measurements):
-    return np.mean(measurements) if len(measurements) > 0 else float('nan')
+    return np.mean(measurements) if measurements else float('nan')
+
+def calculate_standard_uncertainty(measurements):
+    return (np.std(measurements, ddof=1) / np.sqrt(len(measurements))) if len(measurements) > 1 else float('nan')
 
 def calculate_repeatability(measurements):
     return np.std(measurements, ddof=1) if len(measurements) > 1 else float('nan')
@@ -73,8 +76,6 @@ def calc_repeatability_from_ms(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
 def calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
-    if num_measurements_per_day <= 0:
-        return float('nan')
     if ms_between > ms_within:
         return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
     return float('nan')
@@ -98,7 +99,7 @@ def create_pdf(results_list, lang_texts, filename="results.pdf"):
     for param, value, formula in results_list:
         c.drawString(50, y, f"{param}: {value}   Formula: {formula}")
         y -= 20
-        if y < 50:
+        if y < 50:  # yeni sayfa
             c.showPage()
             y = height - 50
     
@@ -107,7 +108,7 @@ def create_pdf(results_list, lang_texts, filename="results.pdf"):
     return buffer
 
 # ------------------------
-# Sonuç Gösterimi
+# Formüller ve Tablo Gösterimi
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
@@ -119,7 +120,7 @@ def display_results_with_formulas(results_list, title, lang_texts):
     return df_values
 
 # ------------------------
-# Günlük Grafik
+# Günlük Grafik Fonksiyonu
 # ------------------------
 def plot_daily_measurements(measurements, lang_texts):
     fig, ax = plt.subplots()
@@ -149,6 +150,7 @@ def run_manual_mode(lang_texts):
             measurements.append(value)
         total_measurements.append(measurements)
 
+    # Ekstra belirsizlik
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["extra_uncert_label"])
@@ -170,8 +172,8 @@ def run_manual_mode(lang_texts):
 
     if st.button(lang_texts["calculate_button"]):
         repeatability_values = []
-        for day in total_measurements:
-            repeatability_values.extend(day)
+        for i, day in enumerate(days):
+            repeatability_values.extend(total_measurements[i])
 
         overall_measurements = [val for day in total_measurements for val in day]
         overall_avg = calculate_average(overall_measurements)
@@ -203,6 +205,8 @@ def run_manual_mode(lang_texts):
 
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(total_measurements, lang_texts)
+
+        # PDF İndir butonu
         pdf_buffer = create_pdf(results_list, lang_texts)
         st.download_button(label=lang_texts["download_pdf"],
                            data=pdf_buffer,
@@ -246,6 +250,7 @@ def run_paste_mode(lang_texts):
 
     overall_avg = np.mean(all_values) if all_values else 1
 
+    # Ekstra Belirsizlik
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -274,8 +279,7 @@ def run_paste_mode(lang_texts):
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
 
         repeatability = calc_repeatability_from_ms(ms_within)
-        num_measurements_per_day = np.mean([len(m) for m in measurements]) if len(measurements) > 0 else 0
-        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
+        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, len(measurements[0]))
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
         relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
@@ -304,4 +308,26 @@ def run_paste_mode(lang_texts):
 
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(measurements, lang_texts)
-        pdf_buffer = create_pdf(results_list, lang
+
+        pdf_buffer = create_pdf(results_list, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"],
+                           data=pdf_buffer,
+                           file_name="uncertainty_results.pdf",
+                           mime="application/pdf")
+
+# ------------------------
+# Ana Fonksiyon
+# ------------------------
+def main():
+    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
+    lang_texts = languages[language]
+
+    mode = st.radio("Veri Giriş Yöntemi / Data Input Method", 
+                    ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
+    if mode in ["Elle Giriş", "Manual Input"]:
+        run_manual_mode(lang_texts)
+    else:
+        run_paste_mode(lang_texts)
+
+if __name__ == "__main__":
+    main()
