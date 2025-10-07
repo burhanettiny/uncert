@@ -257,42 +257,51 @@ def run_paste_mode(lang_texts):
                 value = relative_value * overall_avg
             extra_uncertainties.append((label, value, relative_value, input_type))
 
-    if st.button(lang_texts["calculate_button"]):
-        k = len(measurements)
-        n_list = [len(m) for m in measurements if len(m) > 0]
-        N = sum(n_list)
+if st.button(lang_texts["calculate_button"]):
+    # Boş hücreleri dışla
+    valid_groups = [g for g in measurements if len(g) > 0]
+    if len(valid_groups) < 2:
+        st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
+        st.stop()
 
-        means = [np.mean(m) for m in measurements if len(m) > 0]
-        grand_mean = np.average(means, weights=n_list)
+    # Grup ortalamaları ve ölçüm sayıları
+    means = [np.mean(g) for g in valid_groups]
+    ns = [len(g) for g in valid_groups]
+    N = sum(ns)
+    k = len(valid_groups)
 
-        # --- SS hesapları ---
-        ss_within = sum(sum((x - np.mean(m))**2 for x in m) for m in measurements if len(m) > 1)
-        ss_between = sum(n_list[i] * (means[i] - grand_mean)**2 for i in range(len(means)))
+    # Genel ortalama (ağırlıklı)
+    grand_mean = np.average(means, weights=ns)
 
-        df_within = N - k
-        df_between = k - 1
-        ms_within = ss_within / df_within if df_within > 0 else float('nan')
-        ms_between = ss_between / df_between if df_between > 0 else float('nan')
+    # SS_within ve SS_between
+    ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
+    ss_between = sum(ns[i] * (means[i] - grand_mean)**2 for i in range(k))
 
-        # Repeatability
-        repeatability = np.sqrt(ms_within)
+    df_within = N - k
+    df_between = k - 1
+    ms_within = ss_within / df_within if df_within > 0 else 0.0
+    ms_between = ss_between / df_between if df_between > 0 else 0.0
 
-        # n_eff: efektif tekrar sayısı
-        n_eff = np.mean(n_list)
+    # Repeatability ve Intermediate Precision
+    repeatability = np.sqrt(ms_within)
+    n_eff = np.mean(ns)
+    intermediate_precision = np.sqrt((ms_between - ms_within) / n_eff) if ms_between > ms_within else 0.0
 
-        # Intermediate Precision
-        if ms_between > ms_within:
-            intermediate_precision = np.sqrt((ms_between - ms_within) / n_eff)
-        else:
-            intermediate_precision = 0.0
+    # Göreli bileşenler
+    average_value = np.mean([x for g in valid_groups for x in g])
+    relative_repeatability = repeatability / average_value if average_value != 0 else 0.0
+    relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else 0.0
+    relative_extra_unc = np.sqrt(sum([rel[2] ** 2 for rel in extra_uncertainties])) if extra_uncertainties else 0.0
 
-        # --- Göreceli değerler ---
-        rel_r = repeatability / grand_mean if grand_mean != 0 else float('nan')
-        rel_ip = intermediate_precision / grand_mean if grand_mean != 0 else float('nan')
-        rel_extra = np.sqrt(sum([e[2]**2 for e in extra_uncertainties]))
-        u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
-        U = 2 * u_c * grand_mean
-        U_rel = (U / grand_mean) * 100 if grand_mean != 0 else float('nan')
+    combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
+    expanded_uncertainty = 2 * combined_relative_unc * average_value
+    relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
+
+    # Sonuçlar
+    results_list = [
+        ("Repeatability", f"{repeatability:.4f}", r"s = \sqrt{MS_{within}}"),
+        ("Intermediate Precision", f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between}-MS_{within}}{n}}")
+    ]
 
         results_list = [
             ("Repeatability", f"{repeatability:.3f}", r"s_r = \sqrt{MS_{within}}"),
