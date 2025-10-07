@@ -222,37 +222,28 @@ def run_paste_mode(lang_texts):
         st.stop()
 
     try:
-        # Virgülü noktaya çevir
         pasted_data = pasted_data.replace(',', '.')
-        # Boşluk veya tab ayracıyla oku, boş hücreleri NaN olarak al
         df = pd.read_csv(io.StringIO(pasted_data), sep=r"\s+", header=None, engine='python')
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         st.stop()
 
-    # Gün ve ölçüm isimleri
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
-
-    # Sayısal değerlere çevir ve NaN olanları koru
     df = df.apply(pd.to_numeric, errors='coerce')
 
-    # Her sütunu (günü) boş olmayan değerleriyle listeye al
     measurements = [df[col].dropna().tolist() for col in df.columns]
-
-    # Eğer tüm değerler boşsa hata ver
-    all_values = [val for group in measurements for val in group if not np.isnan(val)]
+    all_values = [v for g in measurements for v in g if not np.isnan(v)]
     if not all_values:
         st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
         st.stop()
 
     overall_avg = np.mean(all_values)
 
-    # --- Ek belirsizlik bütçesi girişi ---
+    # --- Ek belirsizlik bütçesi ---
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["add_uncertainty"])
-
     for i in range(num_extra_uncertainties):
         label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", value="", key=f"paste_label_{i}")
         if label:
@@ -267,54 +258,52 @@ def run_paste_mode(lang_texts):
             extra_uncertainties.append((label, value, relative_value, input_type))
 
     if st.button(lang_texts["calculate_button"]):
-        # --- ANOVA benzeri hesaplama ---
-        total_values = sum(len(m) for m in measurements)
-        num_groups = len(measurements)
+        k = len(measurements)
+        n_list = [len(m) for m in measurements if len(m) > 0]
+        N = sum(n_list)
 
-        # Grup ortalamaları
-        group_means = [np.mean(m) for m in measurements]
+        means = [np.mean(m) for m in measurements if len(m) > 0]
+        grand_mean = np.average(means, weights=n_list)
 
-        # Toplam ortalama
-        grand_mean = np.mean(all_values)
-
-        # SS_between = ∑ n_i * (x̄_i - x̄)^2
-        ss_between = sum(len(m) * (np.mean(m) - grand_mean)**2 for m in measurements if len(m) > 0)
-
-        # SS_within = ∑∑ (x_ij - x̄_i)^2
+        # --- SS hesapları ---
         ss_within = sum(sum((x - np.mean(m))**2 for x in m) for m in measurements if len(m) > 1)
+        ss_between = sum(n_list[i] * (means[i] - grand_mean)**2 for i in range(len(means)))
 
-        df_between = num_groups - 1
-        df_within = total_values - num_groups
-
-        ms_between = ss_between / df_between if df_between > 0 else float('nan')
+        df_within = N - k
+        df_between = k - 1
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
+        ms_between = ss_between / df_between if df_between > 0 else float('nan')
 
-        repeatability = np.sqrt(ms_within) if ms_within >= 0 else float('nan')
+        # Repeatability
+        repeatability = np.sqrt(ms_within)
 
-        num_measurements_per_day = np.mean([len(m) for m in measurements if len(m) > 0])
-        if num_measurements_per_day > 0 and ms_between > ms_within:
-            intermediate_precision = np.sqrt((ms_between - ms_within) / num_measurements_per_day)
+        # n_eff: efektif tekrar sayısı
+        n_eff = np.mean(n_list)
+
+        # Intermediate Precision
+        if ms_between > ms_within:
+            intermediate_precision = np.sqrt((ms_between - ms_within) / n_eff)
         else:
-            intermediate_precision = float('nan')
+            intermediate_precision = 0.0
 
-        relative_repeatability = repeatability / grand_mean if grand_mean != 0 else float('nan')
-        relative_intermediate_precision = intermediate_precision / grand_mean if grand_mean != 0 else float('nan')
-        relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
-
-        combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
-        expanded_uncertainty = 2 * combined_relative_unc * grand_mean
-        relative_expanded_uncertainty = (expanded_uncertainty / grand_mean) * 100 if grand_mean != 0 else float('nan')
+        # --- Göreceli değerler ---
+        rel_r = repeatability / grand_mean if grand_mean != 0 else float('nan')
+        rel_ip = intermediate_precision / grand_mean if grand_mean != 0 else float('nan')
+        rel_extra = np.sqrt(sum([e[2]**2 for e in extra_uncertainties]))
+        u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
+        U = 2 * u_c * grand_mean
+        U_rel = (U / grand_mean) * 100 if grand_mean != 0 else float('nan')
 
         results_list = [
-            ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
-            ("Intermediate Precision", f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}"),
-            ("Combined Relative Uncertainty", f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_{r}^2 + u_{IP}^2 + u_{extra}^2}"),
-            ("Relative Repeatability", f"{relative_repeatability:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
-            ("Relative Intermediate Precision", f"{relative_intermediate_precision:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
-            ("Relative Extra Uncertainty", f"{relative_extra_unc:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
+            ("Repeatability", f"{repeatability:.3f}", r"s_r = \sqrt{MS_{within}}"),
+            ("Intermediate Precision", f"{intermediate_precision:.3f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n_{eff}}}"),
+            ("Combined Relative Uncertainty", f"{u_c:.4f}", r"u_c = \sqrt{u_{r}^2 + u_{IP}^2 + u_{extra}^2}"),
+            ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
+            ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
+            ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
             (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
-            (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
+            (lang_texts["expanded_uncertainty"], f"{U:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
+            (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
         ]
 
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
@@ -327,7 +316,6 @@ def run_paste_mode(lang_texts):
             file_name="uncertainty_results.pdf",
             mime="application/pdf"
         )
-
 
 # ------------------------
 # Main
