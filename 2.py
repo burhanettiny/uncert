@@ -21,11 +21,11 @@ languages = {
         "calculate_button": "Sonuçları Hesapla",
         "overall_results": "Genel Sonuçlar",
         "average_value": "Ortalama Değer",
-        "repeatability_within": "Güç İçi Tekrarlanabilirlik",
+        "repeatability_within": "Gün İçi Tekrarlanabilirlik",
         "repeatability_between": "Günler Arası Tekrarlanabilirlik",
         "combined_relative_unc": "Combined Relative Ek Belirsizlik",
         "expanded_uncertainty": "Genişletilmiş Genel Belirsizlik (k=2)",
-        "relative_expanded_uncertainty_col": "Relative Expanded Uncertainty (%)",
+        "relative_expanded_uncertainty_col": "Göreceli Genişletilmiş Belirsizlik (%)",
         "paste_title": "Belirsizlik Hesaplama Uygulaması",
         "paste_subtitle": "B. Yalçınkaya tarafından geliştirildi",
         "paste_area": "Verileri günlük dikey olacak şekilde buraya yapıştırın",
@@ -64,7 +64,7 @@ languages = {
 # Hesaplama Fonksiyonları
 # ------------------------
 def calculate_average(measurements):
-    return np.mean(measurements) if measurements else float('nan')
+    return np.mean(measurements) if len(measurements) > 0 else float('nan')
 
 def calculate_standard_uncertainty(measurements):
     return (np.std(measurements, ddof=1) / np.sqrt(len(measurements))) if len(measurements) > 1 else float('nan')
@@ -76,6 +76,8 @@ def calc_repeatability_from_ms(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else float('nan')
 
 def calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
+    if num_measurements_per_day <= 0:
+        return float('nan')
     if ms_between > ms_within:
         return np.sqrt((ms_between - ms_within) / num_measurements_per_day)
     return float('nan')
@@ -108,7 +110,7 @@ def create_pdf(results_list, lang_texts, filename="results.pdf"):
     return buffer
 
 # ------------------------
-# Formüller ve Tablo Gösterimi
+# Sonuç Gösterimi
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
@@ -120,7 +122,7 @@ def display_results_with_formulas(results_list, title, lang_texts):
     return df_values
 
 # ------------------------
-# Günlük Grafik Fonksiyonu
+# Günlük Grafik
 # ------------------------
 def plot_daily_measurements(measurements, lang_texts):
     fig, ax = plt.subplots()
@@ -150,7 +152,6 @@ def run_manual_mode(lang_texts):
             measurements.append(value)
         total_measurements.append(measurements)
 
-    # Ekstra belirsizlik
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["extra_uncert_label"])
@@ -206,7 +207,6 @@ def run_manual_mode(lang_texts):
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(total_measurements, lang_texts)
 
-        # PDF İndir butonu
         pdf_buffer = create_pdf(results_list, lang_texts)
         st.download_button(label=lang_texts["download_pdf"],
                            data=pdf_buffer,
@@ -214,7 +214,7 @@ def run_manual_mode(lang_texts):
                            mime="application/pdf")
 
 # ------------------------
-# Yapıştırarak Giriş Modu
+# Yapıştırarak Giriş Modu (GÜNCEL)
 # ------------------------
 def run_paste_mode(lang_texts):
     st.title(lang_texts["paste_title"])
@@ -233,21 +233,18 @@ def run_paste_mode(lang_texts):
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df.index = [f"{i+1}. Ölçüm" for i in range(len(df))]
 
+    # --- Boş günleri atla ---
     measurements = []
     for col in df.columns:
-        group = []
-        for val in df[col]:
-            try:
-                group.append(float(val))
-            except:
-                continue
-        measurements.append(group)
+        group = [float(val) for val in df[col] if str(val).strip() not in ["", "nan", "NaN"]]
+        if len(group) > 0:
+            measurements.append(group)
 
-    all_values = [val for group in measurements for val in group]
-    if not all_values:
+    if len(measurements) == 0:
         st.error("Yapıştırılan veride geçerli sayısal veri bulunamadı!")
         st.stop()
 
+    all_values = [val for group in measurements for val in group]
     overall_avg = np.mean(all_values) if all_values else 1
 
     # Ekstra Belirsizlik
@@ -271,6 +268,7 @@ def run_paste_mode(lang_texts):
         total_values = sum(len(m) for m in measurements)
         num_groups = len(measurements)
         average_value = np.mean(all_values)
+
         ss_between = sum(len(m) * (np.mean(m) - average_value) ** 2 for m in measurements)
         ss_within = sum(sum((x - np.mean(m)) ** 2 for x in m) for m in measurements)
         df_between = num_groups - 1
@@ -278,8 +276,10 @@ def run_paste_mode(lang_texts):
         ms_between = ss_between / df_between if df_between > 0 else float('nan')
         ms_within = ss_within / df_within if df_within > 0 else float('nan')
 
+        avg_measurements_per_day = np.mean([len(m) for m in measurements]) if measurements else 1
+        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, avg_measurements_per_day)
         repeatability = calc_repeatability_from_ms(ms_within)
-        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, len(measurements[0]))
+
         relative_repeatability = repeatability / average_value if average_value != 0 else float('nan')
         relative_intermediate_precision = intermediate_precision / average_value if average_value != 0 else float('nan')
         relative_extra_unc = np.sqrt(sum([rel[2]**2 for rel in extra_uncertainties]))
@@ -301,33 +301,4 @@ def run_paste_mode(lang_texts):
             ("Relative Repeatability", f"{relative_repeatability:.4f}", r"u_{repeat,rel} = \frac{s}{\bar{x}}"),
             ("Relative Intermediate Precision", f"{relative_intermediate_precision:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
             ("Relative Extra Uncertainty", f"{relative_extra_unc:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
-            (lang_texts["average_value"], f"{average_value:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
-            (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
-        ])
-
-        display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
-        plot_daily_measurements(measurements, lang_texts)
-
-        pdf_buffer = create_pdf(results_list, lang_texts)
-        st.download_button(label=lang_texts["download_pdf"],
-                           data=pdf_buffer,
-                           file_name="uncertainty_results.pdf",
-                           mime="application/pdf")
-
-# ------------------------
-# Ana Fonksiyon
-# ------------------------
-def main():
-    language = st.selectbox("Dil / Language", ["Türkçe", "English"])
-    lang_texts = languages[language]
-
-    mode = st.radio("Veri Giriş Yöntemi / Data Input Method", 
-                    ["Elle Giriş", "Yapıştırarak Giriş"] if language=="Türkçe" else ["Manual Input", "Paste Input"])
-    if mode in ["Elle Giriş", "Manual Input"]:
-        run_manual_mode(lang_texts)
-    else:
-        run_paste_mode(lang_texts)
-
-if __name__ == "__main__":
-    main()
+            (lang_texts["average_value"], f"{average_value:.4f}", r"\
