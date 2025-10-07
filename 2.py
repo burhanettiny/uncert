@@ -32,7 +32,8 @@ languages = {
         "results": "Sonuçlar",
         "daily_measurements": "Günlük Ölçüm Sonuçları",
         "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle",
-        "download_pdf": "PDF İndir"
+        "download_pdf": "PDF İndir",
+        "input_data_table": "Girilen Veriler Tablosu"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -56,7 +57,8 @@ languages = {
         "results": "Results",
         "daily_measurements": "Daily Measurement Results",
         "add_uncertainty": "Add Extra Uncertainty Budget",
-        "download_pdf": "Download PDF"
+        "download_pdf": "Download PDF",
+        "input_data_table": "Input Data Table"
     }
 }
 
@@ -138,6 +140,10 @@ def run_paste_mode(lang_texts):
 
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df = df.apply(pd.to_numeric, errors='coerce')
+
+    # Girilen verileri tabloda göster
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df)
 
     # Eksik değerleri dışla
     measurements = [df[col].dropna().tolist() for col in df.columns]
@@ -221,7 +227,6 @@ def main():
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
 
-    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Yapıştır / Paste"])
     run_paste_mode(lang_texts)
 
 if __name__ == "__main__":
