@@ -23,7 +23,7 @@ languages = {
         "average_value": "Ortalama Değer",
         "repeatability_within": "Gün İçi Tekrarlanabilirlik",
         "repeatability_between": "Günler Arası Tekrarlanabilirlik",
-        "combined_relative_unc": "Combined Relative Ek Belirsizlik",
+        "combined_relative_unc": "Bileşik Göreceli Belirsizlik",
         "expanded_uncertainty": "Genişletilmiş Genel Belirsizlik (k=2)",
         "relative_expanded_uncertainty_col": "Göreceli Genişletilmiş Belirsizlik (%)",
         "paste_title": "Belirsizlik Hesaplama Uygulaması",
@@ -37,7 +37,9 @@ languages = {
         "repeat": "Tekrar",
         "day_label": "{}. Gün",
         "table_day_col": "{}. Gün",
-        "table_measurement_col": "Ölçüm {}"
+        "table_measurement_col": "Ölçüm {}",
+        "formula_header": "Formül",
+        "formula_desc_header": "Ne Anlama Geliyor"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -52,7 +54,7 @@ languages = {
         "average_value": "Average Value",
         "repeatability_within": "Repeatability Within Days",
         "repeatability_between": "Repeatability Between Days",
-        "combined_relative_unc": "Combined Relative Extra Uncertainty",
+        "combined_relative_unc": "Combined Relative Uncertainty",
         "expanded_uncertainty": "Expanded Overall Uncertainty (k=2)",
         "relative_expanded_uncertainty_col": "Relative Expanded Uncertainty (%)",
         "paste_title": "Uncertainty Calculation Application",
@@ -66,7 +68,9 @@ languages = {
         "repeat": "Repeat",
         "day_label": "Day {}",
         "table_day_col": "Day {}",
-        "table_measurement_col": "Measurement {}"
+        "table_measurement_col": "Measurement {}",
+        "formula_header": "Formula",
+        "formula_desc_header": "Meaning"
     }
 }
 
@@ -93,8 +97,8 @@ def create_pdf(results_list, lang_texts, filename="results.pdf"):
     y = height - 50
     c.drawString(50, y, lang_texts["results"])
     y -= 30
-    for param, value, formula in results_list:
-        c.drawString(50, y, f"{param}: {value}   Formula: {formula}")
+    for param, value, formula, desc in results_list:
+        c.drawString(50, y, f"{param}: {value}   Formula: {formula} ({desc})")
         y -= 18
         if y < 50:
             c.showPage()
@@ -104,15 +108,16 @@ def create_pdf(results_list, lang_texts, filename="results.pdf"):
     return buffer
 
 # ------------------------
-# Sonuç Gösterimi
+# Sonuç Gösterimi (Tablo + Formül)
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=[lang_texts["results"], "Value"])
+    df_values = pd.DataFrame([(p, v) for p, v, f, d in results_list], columns=[lang_texts["results"], "Value"])
     st.dataframe(df_values)
-    st.write("### Formüller")
-    for param, _, formula in results_list:
-        st.markdown(f"**{param}:** `{formula}`")
+    st.write("### Formüller ve Açıklamaları")
+    df_formulas = pd.DataFrame([(p, f"${f}$", d) for p, v, f, d in results_list],
+                               columns=[lang_texts["results"], lang_texts["formula_header"], lang_texts["formula_desc_header"]])
+    st.dataframe(df_formulas)
     return df_values
 
 # ------------------------
@@ -149,7 +154,6 @@ def run_manual_mode(lang_texts):
             measurements.append(value)
         total_measurements.append(measurements)
 
-    # Girilen verileri tablo olarak göster
     df_manual = pd.DataFrame(total_measurements, columns=[lang_texts["table_measurement_col"].format(i+1) for i in range(5)], index=days)
     st.write("### Girilen Veriler")
     st.dataframe(df_manual)
@@ -189,18 +193,18 @@ def run_manual_mode(lang_texts):
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_overall_uncertainty, average_value)
 
         results_list = [
-            (lang_texts["repeatability_within"], f"{repeatability_within_days:.4f}", r"s = sqrt(var_pooled)"),
-            (lang_texts["repeatability_between"], f"{repeatability_between_days:.4f}", r"s_{IP} = std(day means)")
+            (lang_texts["repeatability_within"], f"{repeatability_within_days:.4f}", r"s_r = \sqrt{MS_{within}}", "Gün içi tekrarlanabilirlik"),
+            (lang_texts["repeatability_between"], f"{repeatability_between_days:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between}-MS_{within}}{n}}", "Günler arası tekrarlanabilirlik")
         ]
 
         for label, value, rel_val, input_type in extra_uncertainties:
-            results_list.append((label, f"{value:.4f}", r"u_{extra}"))
+            results_list.append((label, f"{value:.4f}", r"u_{extra}", "Ekstra belirsizlik"))
 
         results_list.extend([
-            (lang_texts["combined_relative_unc"], f"{combined_relative_unc:.4f}", r"u_c = sqrt(u_repeat^2 + u_IP^2 + u_extra^2)"),
-            (lang_texts["average_value"], f"{average_value:.4f}", r"\bar{x} = sum(x)/n"),
-            (lang_texts["expanded_uncertainty"], f"{expanded_overall_uncertainty:.4f}", r"U = 2 * u_c * x̄"),
-            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_rel = U / x̄ * 100")
+            (lang_texts["combined_relative_unc"], f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_r^2 + u_{IP}^2 + u_{extra}^2}", "Bileşik göreceli belirsizlik"),
+            (lang_texts["average_value"], f"{average_value:.4f}", r"\bar{x} = \frac{\sum x}{n}", "Ortalama değer"),
+            (lang_texts["expanded_uncertainty"], f"{expanded_overall_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}", "Genişletilmiş belirsizlik (k=2)"),
+            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100", "Göreceli genişletilmiş belirsizlik")
         ])
 
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
@@ -241,7 +245,6 @@ def run_paste_mode(lang_texts):
 
     overall_avg = np.mean(all_values)
 
-    # --- Ek belirsizlik ---
     num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extra_uncertainties = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -286,18 +289,18 @@ def run_paste_mode(lang_texts):
         relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, grand_mean)
 
         results_list = [
-            (lang_texts["repeatability_within"], f"{repeatability:.4f}", r"s_r = sqrt(MS_{within})"),
-            (lang_texts["repeatability_between"], f"{intermediate_precision:.4f}", r"s_{IP} = sqrt((MS_{between} - MS_{within})/n_{eff})")
+            (lang_texts["repeatability_within"], f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}", "Gün içi tekrarlanabilirlik"),
+            (lang_texts["repeatability_between"], f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between}-MS_{within}}{n_{eff}}}", "Günler arası tekrarlanabilirlik")
         ]
 
         for label, value, rel_val, input_type in extra_uncertainties:
-            results_list.append((label, f"{value:.4f}", r"u_{extra}"))
+            results_list.append((label, f"{value:.4f}", r"u_{extra}", "Ekstra belirsizlik"))
 
         results_list.extend([
-            (lang_texts["combined_relative_unc"], f"{combined_relative_unc:.4f}", r"u_c = sqrt(u_r^2 + u_{IP}^2 + u_{extra}^2)"),
-            (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = sum(x_i)/n"),
-            (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 * u_c * \bar{x}"),
-            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = U / \bar{x} * 100")
+            (lang_texts["combined_relative_unc"], f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_r^2 + u_{IP}^2 + u_{extra}^2}", "Bileşik göreceli belirsizlik"),
+            (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = \frac{\sum x_i}{n}", "Ortalama değer"),
+            (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}", "Genişletilmiş belirsizlik (k=2)"),
+            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100", "Göreceli genişletilmiş belirsizlik")
         ])
 
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
