@@ -1,10 +1,10 @@
 import numpy as np
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import io
 import matplotlib.pyplot as plt
-from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
 
 # ------------------------
 # Dil Metinleri
@@ -35,34 +35,28 @@ def calc_repeatability_from_ms(ms_within):
     return np.sqrt(ms_within) if ms_within >= 0 else 0
 
 def calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day):
-    if num_measurements_per_day <= 0:
-        return 0
-    diff = ms_between - ms_within
-    return np.sqrt(diff / num_measurements_per_day) if diff > 0 else 0
+    return np.sqrt(max(ms_between - ms_within, 0)/num_measurements_per_day) if num_measurements_per_day>0 else 0
 
 def calc_relative_expanded_uncertainty(expanded_uncertainty, average_value):
     return (expanded_uncertainty / average_value) * 100 if average_value != 0 else 0
 
 # ------------------------
-# PDF Oluşturma
+# PDF
 # ------------------------
 def create_pdf(results_list, lang_texts):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
     c.setFont("Helvetica", 12)
-    
-    y = height - 50
+    y = height-50
     c.drawString(50, y, lang_texts["results"])
     y -= 30
-
     for param, value, formula in results_list:
         c.drawString(50, y, f"{param}: {value}   Formula: {formula}")
         y -= 20
         if y < 50:
             c.showPage()
-            y = height - 50
-    
+            y = height-50
     c.save()
     buffer.seek(0)
     return buffer
@@ -72,7 +66,7 @@ def create_pdf(results_list, lang_texts):
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=[lang_texts["results"], "Değer"])
+    df_values = pd.DataFrame([(p,v) for p,v,f in results_list], columns=[lang_texts["results"], "Değer"])
     st.dataframe(df_values)
     return df_values
 
@@ -82,11 +76,11 @@ def display_results_with_formulas(results_list, title, lang_texts):
 def plot_daily_measurements(measurements, lang_texts):
     fig, ax = plt.subplots()
     for i, group in enumerate(measurements):
-        if len(group) == 0:
+        if len(group)==0:
             continue
         label = f"Gün {i+1}"
-        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
-    ax.set_xticks(range(1, max((len(g) for g in measurements if len(g)>0), default=1)+1))
+        ax.plot(range(1,len(group)+1), group, marker='o', linestyle='-', label=label)
+    ax.set_xticks(range(1, max([len(g) for g in measurements if len(g)>0]+[1])))
     ax.set_xlabel("Ölçüm Sayısı")
     ax.set_ylabel("Değer")
     ax.set_title(lang_texts["daily_measurements"])
@@ -94,7 +88,7 @@ def plot_daily_measurements(measurements, lang_texts):
     st.pyplot(fig)
 
 # ------------------------
-# Yapıştırarak Giriş Modu
+# Yapıştırarak Giriş
 # ------------------------
 def run_paste_mode(lang_texts):
     st.title(lang_texts["paste_title"])
@@ -102,101 +96,98 @@ def run_paste_mode(lang_texts):
     pasted_data = st.text_area(lang_texts["paste_area"])
     if not pasted_data:
         st.stop()
-
     try:
-        pasted_data = pasted_data.replace(',', '.')
-        df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None, engine='python')
+        pasted_data = pasted_data.replace(',','.')
+        df = pd.read_csv(io.StringIO(pasted_data), sep="\s+", header=None)
     except Exception as e:
-        st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+        st.error(f"Hata! ({str(e)})")
         st.stop()
 
-    measurements = []
+    # Ölçümleri gruplara ayır
+    measurements=[]
     for col in df.columns:
-        group = []
+        group=[]
         for val in df[col]:
             try:
-                fval = float(val)
-                group.append(fval)
+                group.append(float(val))
             except:
                 continue
         measurements.append(group)
 
-    all_values = [v for g in measurements for v in g]
-    if not all_values:
+    all_values=[v for g in measurements for v in g]
+    if len(all_values)==0:
         st.error("Geçerli veri bulunamadı!")
         st.stop()
-
     average_value = np.mean(all_values)
 
     # Ekstra belirsizlik
-    num_extra_uncertainties = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
-    extra_uncertainties = []
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0,max_value=10,value=0)
+    extra_unc=[]
     st.subheader(lang_texts["add_uncertainty"])
-    for i in range(num_extra_uncertainties):
+    for i in range(num_extra):
         label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"label_{i}")
         if label:
-            input_type = st.radio(lang_texts["extra_uncert_type"].format(label), ["Mutlak Değer", "Yüzde"], key=f"type_{i}")
-            if input_type == "Mutlak Değer":
-                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"value_{i}")
-                relative_value = value / average_value if average_value !=0 else 0
+            input_type = st.radio(lang_texts["extra_uncert_type"].format(label), ["Mutlak Değer","Yüzde"], key=f"type_{i}")
+            if input_type=="Mutlak Değer":
+                value=st.number_input(f"{label} Değeri", min_value=0.0,value=0.0, step=0.01,key=f"value_{i}")
+                rel=value/average_value if average_value!=0 else 0
             else:
-                percent_value = st.number_input(f"{label} Yüzde (%)", min_value=0.0, value=0.0, step=0.01, key=f"percent_{i}")
-                relative_value = percent_value / 100
-                value = relative_value * average_value
-            extra_uncertainties.append((label, value, relative_value, input_type))
+                percent=st.number_input(f"{label} Yüzde (%)", min_value=0.0,value=0.0,step=0.01,key=f"percent_{i}")
+                rel=percent/100
+                value=rel*average_value
+            extra_unc.append((label,value,rel,input_type))
 
     if st.button(lang_texts["calculate_button"]):
-        # Boş günleri filtrele
-        valid_groups = [g for g in measurements if len(g) > 0]
-        total_values = sum(len(g) for g in valid_groups)
-        num_groups = len(valid_groups)
+        valid_groups=[g for g in measurements if len(g)>0]
+        total_values=sum(len(g) for g in valid_groups)
+        num_groups=len(valid_groups)
 
-        ss_between = sum(len(g)*(np.mean(g)-average_value)**2 for g in valid_groups)
-        ss_within = sum(sum((x-np.mean(g))**2 for x in g) for g in valid_groups)
+        if num_groups==0:
+            st.error("Geçerli veri yok!")
+            st.stop()
 
-        df_between = num_groups - 1
-        df_within = total_values - num_groups
+        ss_between=sum(len(g)*(np.mean(g)-average_value)**2 for g in valid_groups)
+        ss_within=sum(sum((x-np.mean(g))**2 for x in g) for g in valid_groups)
+        df_between=num_groups-1
+        df_within=total_values-num_groups
 
-        ms_between = ss_between / df_between if df_between>0 else 0
-        ms_within = ss_within / df_within if df_within>0 else 0
+        ms_between=ss_between/df_between if df_between>0 else 0
+        ms_within=ss_within/df_within if df_within>0 else 0
 
-        repeatability = calc_repeatability_from_ms(ms_within)
-        num_measurements_per_day = np.mean([len(g) for g in valid_groups]) if num_groups>0 else 1
-        intermediate_precision = calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
+        repeatability=calc_repeatability_from_ms(ms_within)
+        num_measurements_per_day=np.mean([len(g) for g in valid_groups])
+        intermediate_precision=calc_intermediate_precision(ms_within, ms_between, num_measurements_per_day)
 
-        relative_repeatability = repeatability / average_value if average_value !=0 else 0
-        relative_intermediate_precision = intermediate_precision / average_value if average_value !=0 else 0
-        relative_extra_unc = np.sqrt(sum([r[2]**2 for r in extra_uncertainties]))
+        rel_repeat=repeatability/average_value if average_value!=0 else 0
+        rel_intermediate=intermediate_precision/average_value if average_value!=0 else 0
+        rel_extra=np.sqrt(sum([r[2]**2 for r in extra_unc]))
+        combined_rel=np.sqrt(rel_repeat**2+rel_intermediate**2+rel_extra**2)
+        expanded=2*combined_rel*average_value
+        rel_expanded=calc_relative_expanded_uncertainty(expanded,average_value)
 
-        combined_relative_unc = np.sqrt(relative_repeatability**2 + relative_intermediate_precision**2 + relative_extra_unc**2)
-        expanded_uncertainty = 2 * combined_relative_unc * average_value
-        relative_expanded_uncertainty = calc_relative_expanded_uncertainty(expanded_uncertainty, average_value)
-
-        results_list = [
-            ("Repeatability", f"{repeatability:.4f}", r"s = \sqrt{\frac{\sum (x_i - \bar{x})^2}{n-1}}"),
-            ("Intermediate Precision", f"{intermediate_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}"),
-            ("Combined Relative Uncertainty", f"{combined_relative_unc:.4f}", r"u_c = \sqrt{u_{repeat}^2 + u_{IP}^2 + u_{extra}^2}"),
-            ("Relative Repeatability", f"{relative_repeatability:.4f}", r"u_{repeat,rel} = \frac{s}{\bar{x}}"),
-            ("Relative Intermediate Precision", f"{relative_intermediate_precision:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
-            ("Relative Extra Uncertainty", f"{relative_extra_unc:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
-            (lang_texts["average_value"], f"{average_value:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
-            (lang_texts["expanded_uncertainty"], f"{expanded_uncertainty:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-            (lang_texts["relative_expanded_uncertainty_col"], f"{relative_expanded_uncertainty:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
+        results_list=[
+            ("Repeatability",f"{repeatability:.4f}",r"s = sqrt(sum((x_i - x̄)^2)/(n-1))"),
+            ("Intermediate Precision",f"{intermediate_precision:.4f}",r"s_IP = sqrt((MS_between-MS_within)/n)"),
+            ("Combined Relative Uncertainty",f"{combined_rel:.4f}",r"u_c = sqrt(u_repeat^2 + u_IP^2 + u_extra^2)"),
+            ("Relative Repeatability",f"{rel_repeat:.4f}",r"u_repeat,rel = s / x̄"),
+            ("Relative Intermediate Precision",f"{rel_intermediate:.4f}",r"u_IP,rel = s_IP / x̄"),
+            ("Relative Extra Uncertainty",f"{rel_extra:.4f}",r"u_extra,rel = sqrt(sum u_extra,i^2)"),
+            (lang_texts["average_value"],f"{average_value:.4f}",r"x̄ = sum(x_i)/n"),
+            (lang_texts["expanded_uncertainty"],f"{expanded:.4f}",r"U = 2 * u_c * x̄"),
+            (lang_texts["relative_expanded_uncertainty_col"],f"{rel_expanded:.4f}",r"U_rel = U / x̄ * 100")
         ]
-
-        display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
+        display_results_with_formulas(results_list, lang_texts["results"], lang_texts)
         plot_daily_measurements(measurements, lang_texts)
-
-        pdf_buffer = create_pdf(results_list, lang_texts)
-        st.download_button(lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
+        pdf_buf=create_pdf(results_list, lang_texts)
+        st.download_button(lang_texts["results"], data=pdf_buf, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
 # Ana Fonksiyon
 # ------------------------
 def main():
-    language = st.selectbox("Dil / Language", ["Türkçe"])
-    lang_texts = languages[language]
+    language=st.selectbox("Dil / Language", ["Türkçe"])
+    lang_texts=languages[language]
     run_paste_mode(lang_texts)
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()
