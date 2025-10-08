@@ -171,6 +171,55 @@ def calculate_results(measurements, extras, lang_texts):
     return results_list, valid_groups
 
 # ------------------------
+# Elle Giriş Modu
+# ------------------------
+def run_manual_mode(lang_texts):
+    st.header(lang_texts["manual_header"])
+    days = ['1. Gün', '2. Gün', '3. Gün']
+    measurements = []
+
+    for day in days:
+        st.subheader(lang_texts["manual_subheader"].format(day))
+        values = []
+        for i in range(5):
+            val = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
+            values.append(val)
+        measurements.append(values)
+
+    overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
+
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
+    extras = []
+    st.subheader(lang_texts["add_uncertainty"])
+    for i in range(num_extra):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"manual_label_{i}")
+        if label:
+            type_ = st.radio(lang_texts["extra_uncert_type"].format(label),
+                             [lang_texts["absolute"], lang_texts["percent"]], key=f"manual_type_{i}")
+            if type_ == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
+                rel_val = value / overall_avg if overall_avg != 0 else 0
+            else:
+                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
+                rel_val = perc / 100
+                value = rel_val * overall_avg
+            extras.append((label, value, rel_val))
+
+    df_manual = pd.DataFrame(measurements, columns=days)
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df_manual)
+
+    if st.button(lang_texts["calculate_button"]):
+        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
+        display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
+        plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
+        pdf_buffer = create_pdf(results_list, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"],
+                           data=pdf_buffer,
+                           file_name="uncertainty_results_manual.pdf",
+                           mime="application/pdf")
+
+# ------------------------
 # Yapıştırarak Giriş Modu
 # ------------------------
 def run_paste_mode(lang_texts):
@@ -190,16 +239,13 @@ def run_paste_mode(lang_texts):
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df = df.apply(pd.to_numeric, errors='coerce')
 
-    # Girilen verileri tablo olarak göster
     st.subheader(lang_texts["input_data_table"])
     st.dataframe(df)
 
-    # Eksik değerleri dışla
     measurements = [df[col].dropna().tolist() for col in df.columns]
 
     overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
 
-    # Ek belirsizlikler
     num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extras = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -226,56 +272,6 @@ def run_paste_mode(lang_texts):
                            data=pdf_buffer,
                            file_name="uncertainty_results.pdf",
                            mime="application/pdf")
-# ------------------------
-# Elle Giriş Modu
-# ------------------------
-def run_manual_mode(lang_texts):
-    st.header(lang_texts["manual_header"])
-    days = ['1. Gün', '2. Gün', '3. Gün']
-    measurements = []
-
-    for day in days:
-        st.subheader(lang_texts["manual_subheader"].format(day))
-        values = []
-        for i in range(5):
-            val = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
-            values.append(val)
-        measurements.append(values)
-
-    overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
-
-    # Ek belirsizlikler
-    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
-    extras = []
-    st.subheader(lang_texts["add_uncertainty"])
-    for i in range(num_extra):
-        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"manual_label_{i}")
-        if label:
-            type_ = st.radio(lang_texts["extra_uncert_type"].format(label),
-                             [lang_texts["absolute"], lang_texts["percent"]], key=f"manual_type_{i}")
-            if type_ == lang_texts["absolute"]:
-                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
-                rel_val = value / overall_avg if overall_avg != 0 else 0
-            else:
-                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
-                rel_val = perc / 100
-                value = rel_val * overall_avg
-            extras.append((label, value, rel_val))
-
-    # Girilen verileri tablo olarak göster
-    df_manual = pd.DataFrame(measurements, columns=days)
-    st.subheader(lang_texts["input_data_table"])
-    st.dataframe(df_manual)
-
-    if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
-        display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
-        plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
-        pdf_buffer = create_pdf(results_list, lang_texts)
-        st.download_button(label=lang_texts["download_pdf"],
-                           data=pdf_buffer,
-                           file_name="uncertainty_results_manual.pdf",
-                           mime="application/pdf")
 
 # ------------------------
 # Main
@@ -285,7 +281,11 @@ def main():
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
 
-    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Elle / Manual", "Yapıştır / Paste"])
+    # Varsayılan mod "Yapıştır / Paste" olacak
+    mode = st.sidebar.radio("Giriş Modu / Input Mode",
+                            ["Yapıştır / Paste", "Elle / Manual"],
+                            index=0)  # index=0 → Paste modu varsayılan
+
     if mode.startswith("Elle"):
         run_manual_mode(lang_texts)
     else:
