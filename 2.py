@@ -167,7 +167,115 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
     st.pyplot(fig)
 
 # ------------------------
-# Validation Mod (Optimize)
+# RUN MANUAL MODE
+# ------------------------
+def run_manual_mode(lang_texts):
+    st.header(lang_texts["manual_header"])
+    days = ['1. Gün', '2. Gün', '3. Gün']
+    measurements = []
+    for day in days:
+        st.subheader(lang_texts["manual_subheader"].format(day))
+        values = []
+        for i in range(5):
+            val = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
+            values.append(val)
+        values = [v for v in values if v != 0.0]
+        measurements.append(values)
+
+    df_manual = pd.DataFrame([g + [np.nan]*(max(len(x) for x in measurements)-len(g)) for g in measurements]).T
+    df_manual.columns = days
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df_manual)
+
+    overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
+    extras = []
+    st.subheader(lang_texts["add_uncertainty"])
+    for i in range(num_extra):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"manual_label_{i}")
+        if label:
+            type_ = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"manual_type_{i}")
+            if type_ == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
+                rel_val = value / overall_avg if overall_avg != 0 else 0
+            else:
+                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
+                rel_val = perc / 100
+                value = rel_val * overall_avg
+            extras.append((label, value, rel_val))
+
+    if st.button(lang_texts["calculate_button"]):
+        results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
+        st.subheader(lang_texts["overall_results"])
+        st.dataframe(anova_df)
+        plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        st.download_button(lang_texts["download_pdf"], pdf_buffer, "manual_results.pdf", "application/pdf")
+
+# ------------------------
+# RUN PASTE MODE
+# ------------------------
+def run_paste_mode(lang_texts):
+    st.title(lang_texts["paste_title"])
+    st.caption(lang_texts["paste_subtitle"])
+    pasted_data = st.text_area(lang_texts["paste_area"])
+    if not pasted_data:
+        st.stop()
+    try:
+        pasted_data = pasted_data.replace(',', '.')
+        lines = [ln.rstrip() for ln in pasted_data.strip().splitlines() if ln.strip() != ""]
+        use_tab = any('\t' in ln for ln in lines)
+        use_multi_space = any(re.search(r'\s{2,}', ln) for ln in lines)
+        rows = []
+        for line in lines:
+            if use_tab:
+                parts = line.split('\t')
+            elif use_multi_space:
+                parts = re.split(r'\s{2,}', line)
+            else:
+                parts = line.split()
+            rows.append([float(p) for p in parts])
+        max_cols = max(len(r) for r in rows)
+        for r in rows:
+            if len(r) < max_cols:
+                r += [np.nan] * (max_cols - len(r))
+        df = pd.DataFrame(rows)
+        df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
+    except Exception as e:
+        st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+        st.stop()
+
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df)
+    measurements = [df[col].dropna().tolist() for col in df.columns]
+    overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
+
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
+    extras = []
+    st.subheader(lang_texts["add_uncertainty"])
+    for i in range(num_extra):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"paste_label_{i}")
+        if label:
+            type_ = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"paste_type_{i}")
+            if type_ == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"paste_val_{i}")
+                rel_val = value / overall_avg if overall_avg != 0 else 0
+            else:
+                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"paste_percent_{i}")
+                rel_val = perc / 100
+                value = rel_val * overall_avg
+            extras.append((label, value, rel_val))
+
+    if st.button(lang_texts["calculate_button"]):
+        results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
+        st.subheader(lang_texts["overall_results"])
+        st.dataframe(anova_df)
+        plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        st.download_button(lang_texts["download_pdf"], pdf_buffer, "paste_results.pdf", "application/pdf")
+
+# ------------------------
+# RUN VALIDATION MODE
 # ------------------------
 def download_and_load_sample_csv():
     sample_data = {
@@ -204,65 +312,36 @@ def run_validation_mode(lang_texts):
     measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
     results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-    expected_values = {
-        "Repeatability": 1387.6712,
-        "Intermediate Precision": 241.3984,
-        "Relative Repeatability": 0.0400,
-        "Relative Intermediate Precision": 0.0070,
-        "Relative Extra Uncertainty": 0.0300,
-        "Combined Relative Uncertainty": 0.0505,
-        lang_texts["average_value"]: 34653.6933,
-        lang_texts["expanded_uncertainty"]: 3501.2541,
-        lang_texts["relative_expanded_uncertainty_col"]: 10.1036
-    }
-
-    df_results = pd.DataFrame(results_list, columns=["Parametre", "Hesaplanan Değer", "Formül"])
-    df_results["Hesaplanan Değer"] = pd.to_numeric(df_results["Hesaplanan Değer"], errors='coerce')
-    df_results["Beklenen Değer"] = df_results["Parametre"].map(expected_values)
-    df_results["Fark (%)"] = (df_results["Hesaplanan Değer"] - df_results["Beklenen Değer"]) / df_results["Beklenen Değer"] * 100
-
-    st.subheader("Sonuç Karşılaştırması")
-    st.dataframe(df_results[["Parametre", "Hesaplanan Değer", "Beklenen Değer", "Fark (%)"]].style.format({
-        "Hesaplanan Değer": "{:.4f}",
-        "Beklenen Değer": "{:.4f}",
-        "Fark (%)": "{:+.2f}"
-    }))
-
-    st.subheader(lang_texts["anova_table_label"])
-    st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+    st.subheader("Sonuçlar / Results")
+    st.dataframe(anova_df)
     plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
-
-    if reference_col is not None:
-        grand_mean = float(results_list[6][1])
-        deviations = np.abs(grand_mean - reference_col)
-        st.write("### Sapma Kontrolü")
-        st.dataframe(pd.DataFrame({
-            "Reference": reference_col,
-            "Calculated Mean": grand_mean,
-            "Deviation": deviations,
-            "Deviation (%)": deviations / grand_mean * 100
-        }))
-        if any(deviations / grand_mean * 100 > 5):
-            st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
-        else:
-            st.success("Tüm ölçümler referans ile uyumlu.")
 
     pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
     st.download_button(lang_texts["download_pdf"], pdf_buffer, "uncertainty_results_validation.pdf", "application/pdf")
 
 # ------------------------
-# Main
+# MAIN
 # ------------------------
 def main():
     st.sidebar.title("Ayarlar / Settings")
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
-    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"], index=0)
 
-    if mode.startswith("Validation"):
+    mode = st.sidebar.radio(
+        "Giriş Modu / Input Mode",
+        ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"],
+        index=0
+    )
+
+    if "uploaded_df" not in st.session_state:
+        st.session_state["uploaded_df"] = None
+
+    if mode.startswith("Elle"):
+        run_manual_mode(lang_texts)
+    elif mode.startswith("Validation"):
         run_validation_mode(lang_texts)
     else:
-        st.info("Bu sürüm Validation odaklı optimize edildi.")
+        run_paste_mode(lang_texts)
 
 if __name__ == "__main__":
     main()
