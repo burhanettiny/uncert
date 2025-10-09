@@ -275,7 +275,40 @@ def run_paste_mode(lang_texts):
 
     try:
         pasted_data = pasted_data.replace(',', '.')
-        df = pd.read_csv(io.StringIO(pasted_data), sep=r"\s+", header=None, engine='python')
+        
+        # Veriyi satır satır oku
+lines = pasted_data.strip().splitlines()
+rows = []
+
+for line in lines:
+    # Virgülleri noktaya çevir, çoklu boşlukları ayır
+    parts = [x for x in line.replace(',', '.').split() if x != ""]
+    rows.append(parts)
+
+# Tüm satırların aynı sütun sayısına sahip olması için doldur
+max_cols = max(len(r) for r in rows)
+for r in rows:
+    while len(r) < max_cols:
+        r.append(np.nan)
+
+df = pd.DataFrame(rows, dtype=float)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         st.stop()
