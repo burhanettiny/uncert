@@ -103,8 +103,8 @@ def display_results_with_formulas(results_list, title, lang_texts):
     # Kalın ve renkli gösterilecek satırlar
     highlight_map = {
         lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",   # Mavi
-        lang_texts["expanded_uncertainty"]: "color: #28A745; font-weight: bold;",  # Yeşil
-        lang_texts["relative_expanded_uncertainty_col"]: "color: #6F42C1; font-weight: bold;"  # Mor
+        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",  # Yeşil
+        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"  # Mor
     }
 
     # HTML tablo oluştur
