@@ -188,10 +188,22 @@ def calculate_results(measurements, extras, lang_texts):
     ms_within = ss_within / df_within if df_within > 0 else 0
     ms_between = ss_between / df_between if df_between > 0 else 0
 
-    repeatability = np.sqrt(ms_within)
-    n_eff = np.mean(ns)
-    inter_precision = np.sqrt((ms_between - ms_within) / n_eff) if ms_between > ms_within else 0
+    # --- ANOVA tablosu ---
+    F_value = ms_between / ms_within if ms_within != 0 else 0
+    anova_df = pd.DataFrame({
+        "Source of Variation": ["Between Groups", "Within Groups", "Total"],
+        "SS": [ss_between, ss_within, ss_between + ss_within],
+        "df": [df_between, df_within, df_between + df_within],
+        "MS": [ms_between, ms_within, None],
+        "F": [F_value, None, None]
+    })
 
+    # --- Excel ile birebir s_IP formülü ---
+    n_per_group = round(np.mean(ns))
+    repeatability = np.sqrt(ms_within)
+    inter_precision = np.sqrt((ms_between - ms_within) / n_per_group) if ms_between > ms_within else 0
+
+    # --- Belirsizlik bileşenleri ---
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
@@ -202,7 +214,7 @@ def calculate_results(measurements, extras, lang_texts):
 
     results_list = [
         ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n_{eff}}}"),
+        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}"),
         ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
         ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
         ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
@@ -212,7 +224,7 @@ def calculate_results(measurements, extras, lang_texts):
         (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
     ]
 
-    return results_list, valid_groups
+    return results_list, valid_groups, anova_df
 
 # ------------------------
 # Elle Giriş Modu
