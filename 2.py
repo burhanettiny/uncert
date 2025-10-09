@@ -188,7 +188,6 @@ def run_manual_mode(lang_texts):
 
     overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
 
-    # Ek belirsizlikler
     num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extras = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -206,7 +205,6 @@ def run_manual_mode(lang_texts):
                 value = rel_val * overall_avg
             extras.append((label, value, rel_val))
 
-    # Girilen verileri tablo olarak göster
     df_manual = pd.DataFrame(measurements, columns=days)
     st.subheader(lang_texts["input_data_table"])
     st.dataframe(df_manual)
@@ -241,16 +239,13 @@ def run_paste_mode(lang_texts):
     df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     df = df.apply(pd.to_numeric, errors='coerce')
 
-    # Girilen verileri tablo olarak göster
     st.subheader(lang_texts["input_data_table"])
     st.dataframe(df)
 
-    # Eksik değerleri dışla
     measurements = [df[col].dropna().tolist() for col in df.columns]
 
     overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
 
-    # Ek belirsizlikler
     num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
     extras = []
     st.subheader(lang_texts["add_uncertainty"])
@@ -286,7 +281,11 @@ def main():
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
 
-    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Elle / Manual", "Yapıştır / Paste"])
+    # Varsayılan mod "Yapıştır / Paste" olacak
+    mode = st.sidebar.radio("Giriş Modu / Input Mode",
+                            ["Yapıştır / Paste", "Elle / Manual"],
+                            index=0)  # index=0 → Paste modu varsayılan
+
     if mode.startswith("Elle"):
         run_manual_mode(lang_texts)
     else:
