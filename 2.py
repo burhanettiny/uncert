@@ -257,6 +257,12 @@ def run_manual_mode(lang_texts):
         results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
+
+        st.subheader(lang_texts["anova_table_label"])
+        # anova_df gösterimi (sayısal format)
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+
+        
         pdf_buffer = create_pdf(results_list, lang_texts)
         st.download_button(label=lang_texts["download_pdf"],
                            data=pdf_buffer,
