@@ -317,20 +317,54 @@ def run_validation_mode(lang_texts):
     uploaded_file = st.file_uploader("CSV veya Excel dosyası yükleyin", type=["csv", "xlsx"])
     if not uploaded_file:
         st.stop()
+
     if uploaded_file.name.endswith(".csv"):
         df = pd.read_csv(uploaded_file)
     else:
         df = pd.read_excel(uploaded_file)
+
     if "Reference" in df.columns:
         reference_col = df["Reference"]
     else:
         reference_col = None
+
     measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
     results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
-    display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
+
+    # --- Beklenen Değerler (örnek tabloya göre) ---
+    expected_values = {
+        "Repeatability": 1387.6712,
+        "Intermediate Precision": 241.3984,
+        "Relative Repeatability": 0.0400,
+        "Relative Intermediate Precision": 0.0070,
+        "Relative Extra Uncertainty": 0.0300,
+        "Combined Relative Uncertainty": 0.0505,
+        lang_texts["average_value"]: 34653.6933,
+        lang_texts["expanded_uncertainty"]: 3501.2541,
+        lang_texts["relative_expanded_uncertainty_col"]: 10.1036
+    }
+
+    # --- Hesaplanan Değerleri DataFrame’e çevir ---
+    df_results = pd.DataFrame(results_list, columns=["Parametre", "Hesaplanan Değer", "Formül"])
+    df_results["Hesaplanan Değer"] = pd.to_numeric(df_results["Hesaplanan Değer"], errors='coerce')
+
+    # --- Beklenen değer ve fark ekle ---
+    df_results["Beklenen Değer"] = df_results["Parametre"].map(expected_values)
+    df_results["Fark (%)"] = (df_results["Hesaplanan Değer"] - df_results["Beklenen Değer"]) / df_results["Beklenen Değer"] * 100
+
+    # --- Görselleştirme ---
+    st.subheader("Sonuç Karşılaştırması")
+    st.dataframe(df_results[["Parametre", "Hesaplanan Değer", "Beklenen Değer", "Fark (%)"]].style.format({
+        "Hesaplanan Değer": "{:.4f}",
+        "Beklenen Değer": "{:.4f}",
+        "Fark (%)": "{:+.2f}"
+    }))
+
+    # --- Diğer kısımlar aynı ---
     st.subheader(lang_texts["anova_table_label"])
     st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
     plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
+
     if reference_col is not None:
         grand_mean = float(results_list[6][1])
         deviations = np.abs(grand_mean - reference_col)
@@ -345,9 +379,10 @@ def run_validation_mode(lang_texts):
             st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
         else:
             st.success("Tüm ölçümler referans ile uyumlu.")
-    pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-    st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_validation.pdf", mime="application/pdf")
 
+    pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+    st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer,
+                       file_name="uncertainty_results_validation.pdf", mime="application/pdf")
 # ------------------------
 # Main
 # ------------------------
