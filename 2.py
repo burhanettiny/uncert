@@ -197,7 +197,7 @@ def calculate_results(measurements, extras, lang_texts):
     # Repeatability ve Intermediate Precision
     repeatability = np.sqrt(ms_within)
     n_eff = np.mean(ns)
-    inter_precision = np.sqrt((ms_between - ms_within) / n_eff) if ms_between > ms_within else 0
+    inter_precision = np.sqrt((ms_between - ms_within) / k) if ms_between > ms_within else 0
 
     # Göreceli belirsizlikler
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
