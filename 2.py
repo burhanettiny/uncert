@@ -168,10 +168,14 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
 # ------------------------
 # Ortak Hesaplama Fonksiyonu
 # ------------------------
-def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
-    import math
+from decimal import Decimal, ROUND_HALF_UP
+import math
+import numpy as np
+import pandas as pd
+import streamlit as st
 
-    # Eksik değerleri çıkar
+def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
+    # Eksik değerleri çıkar ve numpy array'e çevir
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
     if len(valid_groups) < 2:
         st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
@@ -218,9 +222,23 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
 
-    u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
+    u_c = math.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
     U = 2 * u_c * grand_mean
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
+
+    # Decimal ile Excel uyumlu yuvarlama
+    def excel_round(value, digits=4):
+        return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
+
+    repeatability = excel_round(repeatability, 5)
+    inter_precision = excel_round(inter_precision, 5)
+    rel_r = excel_round(rel_r, 5)
+    rel_ip = excel_round(rel_ip, 5)
+    rel_extra = excel_round(rel_extra, 5)
+    u_c = excel_round(u_c, 5)
+    U = excel_round(U, 5)
+    U_rel = excel_round(U_rel, 5)
+    grand_mean = excel_round(grand_mean, 5)
 
     results_list = [
         ("Repeatability", f"{repeatability:.5f}", r"s_r = \sqrt{MS_{within}}"),
@@ -235,6 +253,7 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
     ]
 
     return results_list, valid_groups
+
 
 
 # ------------------------
