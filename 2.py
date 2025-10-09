@@ -99,11 +99,55 @@ def create_pdf(results_list, lang_texts):
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=["Parametre", "Değer"])
-    st.dataframe(df_values)
+
+    # Kalın ve renkli gösterilecek satırlar
+    highlight_map = {
+        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",   # Mavi
+        lang_texts["expanded_uncertainty"]: "color: #28A745; font-weight: bold;",  # Yeşil
+        lang_texts["relative_expanded_uncertainty_col"]: "color: #6F42C1; font-weight: bold;"  # Mor
+    }
+
+    # HTML tablo oluştur
+    table_html = """
+    <style>
+    table {
+        width: 85%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        text-align: left;
+    }
+    th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+    tr:hover {
+        background-color: #f9f9f9;
+    }
+    </style>
+    <table>
+        <tr>
+            <th>Parametre</th>
+            <th>Değer</th>
+        </tr>
+    """
+
+    for param, value, formula in results_list:
+        style = highlight_map.get(param, "")
+        table_html += f"<tr><td style='{style}'>{param}</td><td style='{style}'>{value}</td></tr>"
+
+    table_html += "</table>"
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
     st.write("### Formüller")
     for param, _, formula in results_list:
         st.latex(formula)
+
 
 # ------------------------
 # Günlük Grafik
