@@ -65,94 +65,7 @@ languages = {
 }
 
 # ------------------------
-# Güvenli Hesaplama Fonksiyonları
-# ------------------------
-def safe_mean(arr):
-    arr = [a for a in arr if not np.isnan(a)]
-    return np.mean(arr) if len(arr) > 0 else 0.0
-
-def safe_std(arr):
-    arr = [a for a in arr if not np.isnan(a)]
-    return np.std(arr, ddof=1) if len(arr) > 1 else 0.0
-
-# ------------------------
-# PDF Oluşturma
-# ------------------------
-def create_pdf(results_list, anova_df, lang_texts):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    c.setFont("Helvetica", 12)
-    y = height - 50
-    c.drawString(50, y, lang_texts["results"])
-    y -= 30
-    for param, value, formula in results_list:
-        c.drawString(50, y, f"{param}: {value}")
-        y -= 18
-        if y < 80:
-            c.showPage()
-            y = height - 50
-    y -= 10
-    c.drawString(50, y, lang_texts["anova_table_label"])
-    y -= 20
-    for idx, row in anova_df.iterrows():
-        txt = f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}, MS={row['MS']:.6f}" if pd.notna(row['MS']) else f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}"
-        c.drawString(50, y, txt)
-        y -= 14
-        if y < 60:
-            c.showPage()
-            y = height - 50
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# ------------------------
-# Sonuç Gösterimi
-# ------------------------
-def display_results_with_formulas(results_list, title, lang_texts):
-    st.write(f"## {title}")
-    highlight_map = {
-        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",
-        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",
-        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"
-    }
-    table_html = """
-    <style>
-    table { width: 85%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px; }
-    th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-    th { background-color: #f5f5f5; font-weight: bold; }
-    tr:hover { background-color: #f9f9f9; }
-    </style>
-    <table>
-        <tr><th>Parametre</th><th>Değer</th></tr>
-    """
-    for param, value, formula in results_list:
-        style = highlight_map.get(param, "")
-        table_html += f"<tr><td style='{style}'>{param}</td><td style='{style}'>{value}</td></tr>"
-    table_html += "</table>"
-    st.markdown(table_html, unsafe_allow_html=True)
-    st.write("### Formüller")
-    for param, _, formula in results_list:
-        st.latex(formula)
-
-# ------------------------
-# Günlük Grafik
-# ------------------------
-def plot_daily_measurements(measurements, col_names, lang_texts):
-    fig, ax = plt.subplots()
-    for i, group in enumerate(measurements):
-        if len(group) == 0:
-            continue
-        label = col_names[i] if i < len(col_names) else f"Gün {i+1}"
-        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
-    ax.set_xlabel("Ölçüm Sayısı")
-    ax.set_ylabel("Değer")
-    ax.set_title(lang_texts["daily_measurements"])
-    ax.legend()
-    st.pyplot(fig)
-
-# ------------------------
-# Hesaplama Fonksiyonu
+# Hesaplama Fonksiyonları
 # ------------------------
 def calculate_results(measurements, extras, lang_texts):
     valid_groups = [g for g in measurements if len(g) > 0]
@@ -199,7 +112,196 @@ def calculate_results(measurements, extras, lang_texts):
     return results_list, valid_groups, anova_df
 
 # ------------------------
-# Örnek CSV İndir
+# PDF Fonksiyonu
+# ------------------------
+def create_pdf(results_list, anova_df, lang_texts):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    c.setFont("Helvetica", 12)
+    y = height - 50
+    c.drawString(50, y, lang_texts["results"])
+    y -= 30
+    for param, value, formula in results_list:
+        c.drawString(50, y, f"{param}: {value}")
+        y -= 18
+        if y < 80:
+            c.showPage()
+            y = height - 50
+    y -= 10
+    c.drawString(50, y, lang_texts["anova_table_label"])
+    y -= 20
+    for idx, row in anova_df.iterrows():
+        txt = f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}, MS={row['MS']:.6f}" if pd.notna(row['MS']) else f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}"
+        c.drawString(50, y, txt)
+        y -= 14
+        if y < 60:
+            c.showPage()
+            y = height - 50
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+# ------------------------
+# Grafik Fonksiyonu
+# ------------------------
+def plot_daily_measurements(measurements, col_names, lang_texts):
+    fig, ax = plt.subplots()
+    for i, group in enumerate(measurements):
+        if len(group) == 0:
+            continue
+        label = col_names[i] if i < len(col_names) else f"Gün {i+1}"
+        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
+    ax.set_xlabel("Ölçüm Sayısı")
+    ax.set_ylabel("Değer")
+    ax.set_title(lang_texts["daily_measurements"])
+    ax.legend()
+    st.pyplot(fig)
+
+# ------------------------
+# Sonuç Gösterim Fonksiyonu
+# ------------------------
+def display_results_with_formulas(results_list, title, lang_texts):
+    st.write(f"## {title}")
+    highlight_map = {
+        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",
+        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",
+        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"
+    }
+    table_html = """
+    <style>
+    table {width: 85%; border-collapse: collapse; margin-top: 10px; margin-bottom: 15px;}
+    th, td {border: 1px solid #ddd; padding: 8px 12px; text-align: left;}
+    th {background-color: #f5f5f5; font-weight: bold;}
+    tr:hover {background-color: #f9f9f9;}
+    </style>
+    <table>
+        <tr><th>Parametre</th><th>Değer</th></tr>
+    """
+    for param, value, formula in results_list:
+        style = highlight_map.get(param, "")
+        table_html += f"<tr><td style='{style}'>{param}</td><td style='{style}'>{value}</td></tr>"
+    table_html += "</table>"
+    st.markdown(table_html, unsafe_allow_html=True)
+    st.write("### Formüller")
+    for param, _, formula in results_list:
+        st.latex(formula)
+
+# ------------------------
+# Manual Mod
+# ------------------------
+def run_manual_mode(lang_texts):
+    st.header(lang_texts["manual_header"])
+    days = ['1. Gün', '2. Gün', '3. Gün']
+    measurements = []
+    for day in days:
+        st.subheader(lang_texts["manual_subheader"].format(day))
+        values = []
+        for i in range(5):
+            val = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
+            values.append(val)
+        values = [v for v in values if v != 0.0]
+        measurements.append(values)
+    df_manual = pd.DataFrame([g + [np.nan]*(max(len(x) for x in measurements)-len(g)) for g in measurements]).T
+    df_manual.columns = days
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df_manual)
+    overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
+    extras = []
+    st.subheader(lang_texts["add_uncertainty"])
+    for i in range(num_extra):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"manual_label_{i}")
+        if label:
+            type_ = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"manual_type_{i}")
+            if type_ == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"manual_val_{i}")
+                rel_val = value / overall_avg if overall_avg != 0 else 0
+            else:
+                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"manual_percent_{i}")
+                rel_val = perc / 100
+                value = rel_val * overall_avg
+            extras.append((label, value, rel_val))
+    if st.button(lang_texts["calculate_button"]):
+        results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
+        display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
+        st.subheader(lang_texts["anova_table_label"])
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+        plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_manual.pdf", mime="application/pdf")
+
+# ------------------------
+# Paste Mod
+# ------------------------
+def run_paste_mode(lang_texts):
+    import re
+    st.title(lang_texts["paste_title"])
+    st.caption(lang_texts["paste_subtitle"])
+    pasted_data = st.text_area(lang_texts["paste_area"])
+    if not pasted_data:
+        st.stop()
+    try:
+        pasted_data = pasted_data.replace(',', '.')
+        lines = [ln.rstrip() for ln in pasted_data.strip().splitlines() if ln.strip() != ""]
+        use_tab = any('\t' in ln for ln in lines)
+        use_multi_space = any(re.search(r'\s{2,}', ln) for ln in lines)
+        rows = []
+        for line in lines:
+            if use_tab:
+                parts = line.split('\t')
+            elif use_multi_space:
+                parts = re.split(r'\s{2,}', line)
+            else:
+                parts = line.split()
+            parts = [p.strip() for p in parts]
+            rows.append(parts)
+        max_cols = max(len(r) for r in rows)
+        for r in rows:
+            if len(r) < max_cols:
+                r += [''] * (max_cols - len(r))
+        df = pd.DataFrame(rows)
+        df = df.replace('', np.nan)
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
+    except Exception as e:
+        st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+        st.stop()
+    st.subheader(lang_texts["input_data_table"])
+    try:
+        styled = df.style.applymap(lambda v: 'background-color: #ffcccc' if pd.isna(v) else '')
+        st.dataframe(styled)
+    except Exception:
+        st.dataframe(df)
+    measurements = [df[col].dropna().tolist() for col in df.columns]
+    overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
+    num_extra = st.number_input(lang_texts["extra_uncert_count"], min_value=0, max_value=10, value=0, step=1)
+    extras = []
+    st.subheader(lang_texts["add_uncertainty"])
+    for i in range(num_extra):
+        label = st.text_input(f"Ekstra Belirsizlik {i+1} Adı", key=f"paste_label_{i}")
+        if label:
+            type_ = st.radio(lang_texts["extra_uncert_type"].format(label), [lang_texts["absolute"], lang_texts["percent"]], key=f"paste_type_{i}")
+            if type_ == lang_texts["absolute"]:
+                value = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"paste_val_{i}")
+                rel_val = value / overall_avg if overall_avg != 0 else 0
+            else:
+                perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, key=f"paste_percent_{i}")
+                rel_val = perc / 100
+                value = rel_val * overall_avg
+            extras.append((label, value, rel_val))
+    if st.button(lang_texts["calculate_button"]):
+        results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
+        display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
+        st.subheader(lang_texts["anova_table_label"])
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+        plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
+
+# ------------------------
+# Validation Mod
 # ------------------------
 def download_sample_csv():
     sample_data = {
@@ -211,16 +313,8 @@ def download_sample_csv():
     df_sample = pd.DataFrame(sample_data)
     csv_buffer = io.StringIO()
     df_sample.to_csv(csv_buffer, index=False)
-    st.download_button(
-        label="Örnek Validation CSV’sini İndir / Download Sample CSV",
-        data=csv_buffer.getvalue(),
-        file_name="example_validation.csv",
-        mime="text/csv"
-    )
+    st.download_button(label="Örnek Validation CSV’sini İndir / Download Sample CSV", data=csv_buffer.getvalue(), file_name="example_validation.csv", mime="text/csv")
 
-# ------------------------
-# Validation Modu
-# ------------------------
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
@@ -255,10 +349,7 @@ def run_validation_mode(lang_texts):
         else:
             st.success("Tüm ölçümler referans ile uyumlu.")
     pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-    st.download_button(label=lang_texts["download_pdf"],
-                       data=pdf_buffer,
-                       file_name="uncertainty_results_validation.pdf",
-                       mime="application/pdf")
+    st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_validation.pdf", mime="application/pdf")
 
 # ------------------------
 # Main
@@ -267,9 +358,7 @@ def main():
     st.sidebar.title("Ayarlar / Settings")
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
-    mode = st.sidebar.radio("Giriş Modu / Input Mode",
-                            ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"],
-                            index=0)
+    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"], index=0)
     if mode.startswith("Elle"):
         run_manual_mode(lang_texts)
     elif mode.startswith("Validation"):
@@ -277,8 +366,5 @@ def main():
     else:
         run_paste_mode(lang_texts)
 
-# ------------------------
-# Run App
-# ------------------------
 if __name__ == "__main__":
     main()
