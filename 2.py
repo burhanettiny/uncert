@@ -171,54 +171,35 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
 # ------------------------
 # Ortak Hesaplama Fonksiyonu
 # ------------------------
-from decimal import Decimal, ROUND_HALF_UP
-import math
-import numpy as np
-import pandas as pd
-import streamlit as st
-
-def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
+def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     # Eksik değerleri çıkar ve numpy array'e çevir
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
-    if len(valid_groups) < 2:
-        st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
+    if len(valid_groups) < 1:
+        st.error("Analiz için en az bir dolu sütun (gün) gerekli!")
         st.stop()
 
-    means = [np.mean(g) for g in valid_groups]
+    k = len(valid_groups)
     ns = [len(g) for g in valid_groups]
     N = sum(ns)
-    k = len(valid_groups)
 
+    means = [np.mean(g) for g in valid_groups]
     grand_mean = np.average(means, weights=ns)
 
-    # ANOVA elemanları
+    # ANOVA hesaplamaları
     ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
-    ss_between = sum(ns[i] * (means[i] - grand_mean)**2 for i in range(k))
+    df_within = N - k if N - k > 0 else 1  # 1 veya daha fazla gün için korunur
+    ms_within = ss_within / df_within if df_within > 0 else 0.0
 
-    df_within = N - k
-    df_between = k - 1
-
-    ms_within = ss_within / df_within if df_within > 0 else np.nan
-    ms_between = ss_between / df_between if df_between > 0 else np.nan
-
-    repeatability = math.sqrt(ms_within)
-
-    # n_eff seçenekleri
-    n_bar = N / k
-    n0 = (N - sum(n_i**2 for n_i in ns) / N) / (k - 1) if (k - 1) > 0 else n_bar
-
-    diff = ms_between - ms_within if not np.isnan(ms_between) and not np.isnan(ms_within) else 0
-
-    # Intermediate Precision seçimi
-    if ip_method == "n_bar":
-        inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
-        chosen_label = f"n_bar = {n_bar:.5f}"
-    elif ip_method == "n0":
-        inter_precision = math.sqrt(diff / n0) if diff > 0 else 0.0
-        chosen_label = f"n0 = {n0:.5f}"
+    if k > 1:
+        ss_between = sum(n_i * (m_i - grand_mean)**2 for n_i, m_i in zip(ns, means))
+        df_between = k - 1
+        ms_between = ss_between / df_between if df_between > 0 else 0.0
     else:
-        inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
-        chosen_label = f"n_bar = {n_bar:.5f}"
+        ms_between = 0.0
+
+    # Excel mantığı ile Repeatability ve Intermediate Precision
+    repeatability = math.sqrt(ms_within)
+    inter_precision = math.sqrt(ms_between) if k > 1 else 0.0
 
     # Göreceli belirsizlikler
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
@@ -233,30 +214,29 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
     def excel_round(value, digits=4):
         return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
 
-    repeatability = excel_round(repeatability, 5)
-    inter_precision = excel_round(inter_precision, 5)
+    repeatability = excel_round(repeatability, 3)
+    inter_precision = excel_round(inter_precision, 3)
     rel_r = excel_round(rel_r, 5)
     rel_ip = excel_round(rel_ip, 5)
     rel_extra = excel_round(rel_extra, 5)
     u_c = excel_round(u_c, 5)
-    U = excel_round(U, 5)
-    U_rel = excel_round(U_rel, 5)
-    grand_mean = excel_round(grand_mean, 5)
+    U = excel_round(U, 2)
+    U_rel = excel_round(U_rel, 1)
+    grand_mean = excel_round(grand_mean, 2)
 
     results_list = [
-        ("Repeatability", f"{repeatability:.5f}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision:.5f}", rf"s_{{IP}} (method={chosen_label})"),
+        ("Repeatability", f"{repeatability}", r"s_r = \sqrt{MS_{within}}"),
+        ("Intermediate Precision", f"{inter_precision}", r"s_{IP} = \sqrt{MS_{between}}"),
         ("Relative Repeatability", f"{rel_r:.5f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
         ("Relative Intermediate Precision", f"{rel_ip:.5f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
         ("Relative Extra Uncertainty", f"{rel_extra:.5f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
         ("Combined Relative Uncertainty", f"{u_c:.5f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
-        (lang_texts["average_value"], f"{grand_mean:.5f}", r"\bar{x} = \frac{\sum x_i}{n}"),
-        (lang_texts["expanded_uncertainty"], f"{U:.5f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.5f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
+        (lang_texts["average_value"], f"{grand_mean}", r"\bar{x} = \frac{\sum x_i}{n}"),
+        (lang_texts["expanded_uncertainty"], f"{U}", r"U = 2 \cdot u_c \cdot \bar{x}"),
+        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
     ]
 
     return results_list, valid_groups
-
 
 
 # ------------------------
