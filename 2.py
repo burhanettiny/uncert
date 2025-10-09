@@ -168,23 +168,23 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
 # ------------------------
 # Ortak Hesaplama Fonksiyonu
 # ------------------------
-def calculate_results(measurements, extras, lang_texts):
-    # Eksik değerleri (None, NaN, boş liste) dışla
+def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
+    import math
+
+    # Eksik değerleri çıkar
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
     if len(valid_groups) < 2:
         st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
         st.stop()
 
-    # Grup istatistikleri
     means = [np.mean(g) for g in valid_groups]
     ns = [len(g) for g in valid_groups]
     N = sum(ns)
     k = len(valid_groups)
 
-    # Genel ortalama (Excel'in kullandığı şekilde ağırlıklı)
     grand_mean = np.average(means, weights=ns)
 
-    # ANOVA bileşenleri (Excel ile uyumlu, ddof=1)
+    # ANOVA elemanları
     ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
     ss_between = sum(ns[i] * (means[i] - grand_mean)**2 for i in range(k))
 
@@ -194,24 +194,38 @@ def calculate_results(measurements, extras, lang_texts):
     ms_within = ss_within / df_within if df_within > 0 else np.nan
     ms_between = ss_between / df_between if df_between > 0 else np.nan
 
-    # Repeatability ve Intermediate Precision
-    repeatability = np.sqrt(ms_within)
-    n_eff = np.mean(ns)
-    inter_precision = np.sqrt((ms_between - ms_within) / k) if ms_between > ms_within else 0
+    repeatability = math.sqrt(ms_within)
+
+    # n_eff seçenekleri
+    n_bar = N / k
+    # n0 = (N - sum(n_i^2)/N) / (k-1) standard ANOVA yaklaşımı
+    n0 = (N - sum(n_i**2 for n_i in ns) / N) / (k - 1) if (k - 1) > 0 else n_bar
+
+    diff = ms_between - ms_within if not np.isnan(ms_between) and not np.isnan(ms_within) else 0
+
+    # Intermediate Precision seçimi
+    if ip_method == "n_bar":
+        inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
+        chosen_label = f"n_bar = {n_bar:.4f}"
+    elif ip_method == "n0":
+        inter_precision = math.sqrt(diff / n0) if diff > 0 else 0.0
+        chosen_label = f"n0 = {n0:.4f}"
+    else:
+        inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
+        chosen_label = f"n_bar = {n_bar:.4f}"
 
     # Göreceli belirsizlikler
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
 
-    # Birleşik ve genişletilmiş belirsizlik
     u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
     U = 2 * u_c * grand_mean
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
 
     results_list = [
         ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n_{eff}}}"),
+        ("Intermediate Precision", f"{inter_precision:.4f}", rf"s_{{IP}} (method={chosen_label})"),
         ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
         ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
         ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
@@ -222,6 +236,7 @@ def calculate_results(measurements, extras, lang_texts):
     ]
 
     return results_list, valid_groups
+
 
 # ------------------------
 # Elle Giriş Modu
