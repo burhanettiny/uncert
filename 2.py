@@ -65,7 +65,61 @@ languages = {
 }
 
 # ------------------------
-# Excel Uyumluluğu ile Hesaplama Fonksiyonu
+# Excel tarzı Yuvarlama
+# ------------------------
+def excel_round(value, digits=4):
+    return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
+
+# ------------------------
+# PDF Oluşturma
+# ------------------------
+def create_pdf(results_list, lang_texts):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    c.setFont("Helvetica", 12)
+    y = height - 50
+    c.drawString(50, y, lang_texts["results"])
+    y -= 30
+    for param, value, formula in results_list:
+        c.drawString(50, y, f"{param}: {value}")
+        y -= 18
+        if y < 50:
+            c.showPage()
+            y = height - 50
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+# ------------------------
+# Sonuç Gösterimi
+# ------------------------
+def display_results_with_formulas(results_list, title, lang_texts):
+    st.write(f"## {title}")
+    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=["Parametre", "Değer"])
+    st.dataframe(df_values.style.format(precision=5))
+    st.write("### Formüller")
+    for param, _, formula in results_list:
+        st.latex(formula)
+
+# ------------------------
+# Günlük Grafik
+# ------------------------
+def plot_daily_measurements(measurements, col_names, lang_texts):
+    fig, ax = plt.subplots()
+    for i, group in enumerate(measurements):
+        if len(group) == 0:
+            continue
+        label = col_names[i] if i < len(col_names) else f"Gün {i+1}"
+        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
+    ax.set_xlabel("Ölçüm Sayısı")
+    ax.set_ylabel("Değer")
+    ax.set_title(lang_texts["daily_measurements"])
+    ax.legend()
+    st.pyplot(fig)
+
+# ------------------------
+# Hesaplama Fonksiyonu (Excel uyumlu)
 # ------------------------
 def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
@@ -88,12 +142,11 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
         ss_between = sum(n_i * (m_i - grand_mean)**2 for n_i, m_i in zip(ns, means))
         df_between = k - 1
         ms_between = ss_between / df_between if df_between > 0 else 0.0
+        inter_precision = math.sqrt(ms_between)
     else:
-        ms_between = 0.0
+        inter_precision = 0.0
 
     repeatability = math.sqrt(ms_within)
-    inter_precision = math.sqrt(ms_between) if k > 1 else 0.0
-
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
@@ -102,9 +155,7 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     U = 2 * u_c * grand_mean
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
 
-    def excel_round(value, digits=4):
-        return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
-
+    # Excel tarzı yuvarlama
     repeatability = excel_round(repeatability, 3)
     inter_precision = excel_round(inter_precision, 3)
     rel_r = excel_round(rel_r, 5)
@@ -130,12 +181,7 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     return results_list, valid_groups
 
 # ------------------------
-# Diğer Fonksiyonlar (PDF, Grafik vs) aynen kalabilir
-# ------------------------
-# create_pdf, display_results_with_formulas, plot_daily_measurements aynı şekilde kullanılabilir
-
-# ------------------------
-# run_manual_mode
+# Manual Mod
 # ------------------------
 def run_manual_mode(lang_texts):
     st.header(lang_texts["manual_header"])
@@ -184,7 +230,7 @@ def run_manual_mode(lang_texts):
                            mime="application/pdf")
 
 # ------------------------
-# run_paste_mode
+# Paste Mod
 # ------------------------
 def run_paste_mode(lang_texts):
     st.title(lang_texts["paste_title"])
