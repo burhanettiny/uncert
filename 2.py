@@ -33,7 +33,8 @@ languages = {
         "daily_measurements": "Günlük Ölçüm Sonuçları",
         "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle",
         "download_pdf": "PDF İndir",
-        "input_data_table": "Girilen Veriler Tablosu"
+        "input_data_table": "Girilen Veriler Tablosu",
+        "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -58,7 +59,8 @@ languages = {
         "daily_measurements": "Daily Measurement Results",
         "add_uncertainty": "Add Extra Uncertainty Budget",
         "download_pdf": "Download PDF",
-        "input_data_table": "Input Data Table"
+        "input_data_table": "Input Data Table",
+        "anova_table_label": "ANOVA Table"
     }
 }
 
@@ -76,7 +78,7 @@ def safe_std(arr):
 # ------------------------
 # PDF Oluşturma
 # ------------------------
-def create_pdf(results_list, lang_texts):
+def create_pdf(results_list, anova_df, lang_texts):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -87,9 +89,22 @@ def create_pdf(results_list, lang_texts):
     for param, value, formula in results_list:
         c.drawString(50, y, f"{param}: {value}")
         y -= 18
-        if y < 50:
+        if y < 80:
             c.showPage()
             y = height - 50
+
+    y -= 10
+    c.drawString(50, y, lang_texts["anova_table_label"])
+    y -= 20
+    # Basit ANOVA yazımı
+    for idx, row in anova_df.iterrows():
+        txt = f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}, MS={row['MS']:.6f}" if pd.notna(row['MS']) else f"{row['Varyans Kaynağı']}: SS={row['SS']:.6f}, df={int(row['df'])}"
+        c.drawString(50, y, txt)
+        y -= 14
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
     c.save()
     buffer.seek(0)
     return buffer
@@ -102,9 +117,9 @@ def display_results_with_formulas(results_list, title, lang_texts):
 
     # Kalın ve renkli gösterilecek satırlar
     highlight_map = {
-        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",   # Mavi
-        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",  # Yeşil
-        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"  # Mor
+        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",
+        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",
+        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"
     }
 
     # HTML tablo oluştur
@@ -148,7 +163,6 @@ def display_results_with_formulas(results_list, title, lang_texts):
     for param, _, formula in results_list:
         st.latex(formula)
 
-
 # ------------------------
 # Günlük Grafik
 # ------------------------
@@ -166,7 +180,7 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
     st.pyplot(fig)
 
 # ------------------------
-# Ortak Hesaplama Fonksiyonu
+# Ortak Hesaplama Fonksiyonu (Excel ile birebir uyumlu)
 # ------------------------
 def calculate_results(measurements, extras, lang_texts):
     valid_groups = [g for g in measurements if len(g) > 0]
@@ -179,30 +193,53 @@ def calculate_results(measurements, extras, lang_texts):
     N = sum(ns)
     k = len(valid_groups)
 
+    # grand mean (weighted by group sizes)
     grand_mean = np.average(means, weights=ns)
+
+    # SS hesapları (Excel ile aynı yaklaşım)
     ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
     ss_between = sum(ns[i] * (means[i] - grand_mean)**2 for i in range(k))
+
     df_within = N - k
     df_between = k - 1
 
-    ms_within = ss_within / df_within if df_within > 0 else 0
-    ms_between = ss_between / df_between if df_between > 0 else 0
+    ms_within = ss_within / df_within if df_within > 0 else 0.0
+    ms_between = ss_between / df_between if df_between > 0 else 0.0
 
+    # ANOVA DataFrame (Excel formatına yakın)
+    anova_df = pd.DataFrame({
+        "Varyans Kaynağı": ["Gruplar Arasında", "Gruplar İçinde", "Toplam"],
+        "SS": [ss_between, ss_within, ss_between + ss_within],
+        "df": [df_between, df_within, df_between + df_within],
+        "MS": [ms_between, ms_within, np.nan]
+    })
+
+    # Excel ile birebir s_r ve s_IP hesaplama
+    # s_r = sqrt(MS_within)
     repeatability = np.sqrt(ms_within)
-    n_eff = np.mean(ns)
-    inter_precision = np.sqrt((ms_between - ms_within) / n_eff) if ms_between > ms_within else 0
 
-    rel_r = repeatability / grand_mean if grand_mean != 0 else 0
-    rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
-    rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
+    # n per group should be integer as in Excel (ortalama grup sayısının yuvarlanmış hali)
+    n_per_group = int(round(np.mean(ns)))
+    if n_per_group <= 0:
+        n_per_group = 1
 
+    # s_IP = sqrt( (MS_between - MS_within) / n )
+    inter_precision = np.sqrt((ms_between - ms_within) / n_per_group) if ms_between > ms_within else 0.0
+
+    # Relative components
+    rel_r = repeatability / grand_mean if grand_mean != 0 else 0.0
+    rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0.0
+    rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0.0
+
+    # Combined and expanded
     u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
     U = 2 * u_c * grand_mean
-    U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
+    U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0.0
 
+    # Hazırla: sonuçları string formatında (Excel'e benzer gösterim)
     results_list = [
         ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n_{eff}}}"),
+        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}"),
         ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
         ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
         ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
@@ -212,7 +249,7 @@ def calculate_results(measurements, extras, lang_texts):
         (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
     ]
 
-    return results_list, valid_groups
+    return results_list, valid_groups, anova_df
 
 # ------------------------
 # Elle Giriş Modu
@@ -228,7 +265,14 @@ def run_manual_mode(lang_texts):
         for i in range(5):
             val = st.number_input(f"{day} - Tekrar {i+1}", value=0.0, step=0.01, format="%.2f", key=f"{day}_{i}")
             values.append(val)
+        # remove zeros entered as defaults (tutarlı davranış için)
+        values = [v for v in values if v != 0.0]
         measurements.append(values)
+
+    df_manual = pd.DataFrame([g + [np.nan]*(max(len(x) for x in measurements)-len(g)) for g in measurements]).T
+    df_manual.columns = days
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df_manual)
 
     overall_avg = np.mean([v for g in measurements for v in g if v != 0]) or 1.0
 
@@ -249,10 +293,6 @@ def run_manual_mode(lang_texts):
                 value = rel_val * overall_avg
             extras.append((label, value, rel_val))
 
-    df_manual = pd.DataFrame(measurements, columns=days)
-    st.subheader(lang_texts["input_data_table"])
-    st.dataframe(df_manual)
-
     if st.button(lang_texts["calculate_button"]):
         results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
@@ -267,6 +307,7 @@ def run_manual_mode(lang_texts):
                            data=pdf_buffer,
                            file_name="uncertainty_results_manual.pdf",
                            mime="application/pdf")
+
 # ------------------------
 # Yapıştırarak Giriş Modu
 # ------------------------
@@ -349,23 +390,18 @@ def run_paste_mode(lang_texts):
             extras.append((label, value, rel_val))
 
     if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
+        results_list, valid_groups, anova_df = calculate_results(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
+
+        st.subheader(lang_texts["anova_table_label"])
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
-        pdf_buffer = create_pdf(results_list, lang_texts)
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(label=lang_texts["download_pdf"],
                            data=pdf_buffer,
                            file_name="uncertainty_results.pdf",
                            mime="application/pdf")
-
-
-
-
-
-
-
-
-
 
 # ------------------------
 # Main
