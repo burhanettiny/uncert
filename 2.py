@@ -183,6 +183,9 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
 # Ortak Hesaplama Fonksiyonu (Excel ile birebir uyumlu)
 # ------------------------
 def calculate_results(measurements, extras, lang_texts):
+    measurements = [np.array(g, dtype=np.float64) for g in measurements]
+    means = [np.mean(g, dtype=np.float64) for g in valid_groups]
+
     valid_groups = [g for g in measurements if len(g) > 0]
     if len(valid_groups) < 2:
         st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
