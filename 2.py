@@ -198,7 +198,6 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
 
     # n_eff seçenekleri
     n_bar = N / k
-    # n0 = (N - sum(n_i^2)/N) / (k-1) standard ANOVA yaklaşımı
     n0 = (N - sum(n_i**2 for n_i in ns) / N) / (k - 1) if (k - 1) > 0 else n_bar
 
     diff = ms_between - ms_within if not np.isnan(ms_between) and not np.isnan(ms_within) else 0
@@ -206,13 +205,13 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
     # Intermediate Precision seçimi
     if ip_method == "n_bar":
         inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
-        chosen_label = f"n_bar = {n_bar:.4f}"
+        chosen_label = f"n_bar = {n_bar:.5f}"
     elif ip_method == "n0":
         inter_precision = math.sqrt(diff / n0) if diff > 0 else 0.0
-        chosen_label = f"n0 = {n0:.4f}"
+        chosen_label = f"n0 = {n0:.5f}"
     else:
         inter_precision = math.sqrt(diff / n_bar) if diff > 0 else 0.0
-        chosen_label = f"n_bar = {n_bar:.4f}"
+        chosen_label = f"n_bar = {n_bar:.5f}"
 
     # Göreceli belirsizlikler
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
@@ -224,15 +223,15 @@ def calculate_results(measurements, extras, lang_texts, ip_method="n_bar"):
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
 
     results_list = [
-        ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision:.4f}", rf"s_{{IP}} (method={chosen_label})"),
-        ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
-        ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
-        ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
-        ("Combined Relative Uncertainty", f"{u_c:.4f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
-        (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
-        (lang_texts["expanded_uncertainty"], f"{U:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
+        ("Repeatability", f"{repeatability:.5f}", r"s_r = \sqrt{MS_{within}}"),
+        ("Intermediate Precision", f"{inter_precision:.5f}", rf"s_{{IP}} (method={chosen_label})"),
+        ("Relative Repeatability", f"{rel_r:.5f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
+        ("Relative Intermediate Precision", f"{rel_ip:.5f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
+        ("Relative Extra Uncertainty", f"{rel_extra:.5f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
+        ("Combined Relative Uncertainty", f"{u_c:.5f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
+        (lang_texts["average_value"], f"{grand_mean:.5f}", r"\bar{x} = \frac{\sum x_i}{n}"),
+        (lang_texts["expanded_uncertainty"], f"{U:.5f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
+        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.5f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
     ]
 
     return results_list, valid_groups
