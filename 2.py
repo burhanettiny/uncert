@@ -5,6 +5,9 @@ import io
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from decimal import Decimal, ROUND_HALF_UP
+import math
+
 
 # ------------------------
 # Dil Metinleri
