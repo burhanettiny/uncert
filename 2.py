@@ -1,12 +1,10 @@
 import numpy as np
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import io
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-from decimal import Decimal, ROUND_HALF_UP
-import math
 
 # ------------------------
 # Dil Metinleri
@@ -65,10 +63,15 @@ languages = {
 }
 
 # ------------------------
-# Excel tarzı Yuvarlama
+# Güvenli Hesaplama Fonksiyonları
 # ------------------------
-def excel_round(value, digits=4):
-    return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
+def safe_mean(arr):
+    arr = [a for a in arr if not np.isnan(a)]
+    return np.mean(arr) if len(arr) > 0 else 0.0
+
+def safe_std(arr):
+    arr = [a for a in arr if not np.isnan(a)]
+    return np.std(arr, ddof=1) if len(arr) > 1 else 0.0
 
 # ------------------------
 # PDF Oluşturma
@@ -96,11 +99,55 @@ def create_pdf(results_list, lang_texts):
 # ------------------------
 def display_results_with_formulas(results_list, title, lang_texts):
     st.write(f"## {title}")
-    df_values = pd.DataFrame([(p, v) for p, v, f in results_list], columns=["Parametre", "Değer"])
-    st.dataframe(df_values.style.format(precision=5))
+
+    # Kalın ve renkli gösterilecek satırlar
+    highlight_map = {
+        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",   # Mavi
+        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",  # Yeşil
+        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"  # Mor
+    }
+
+    # HTML tablo oluştur
+    table_html = """
+    <style>
+    table {
+        width: 85%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        margin-bottom: 15px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        text-align: left;
+    }
+    th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+    tr:hover {
+        background-color: #f9f9f9;
+    }
+    </style>
+    <table>
+        <tr>
+            <th>Parametre</th>
+            <th>Değer</th>
+        </tr>
+    """
+
+    for param, value, formula in results_list:
+        style = highlight_map.get(param, "")
+        table_html += f"<tr><td style='{style}'>{param}</td><td style='{style}'>{value}</td></tr>"
+
+    table_html += "</table>"
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
     st.write("### Formüller")
     for param, _, formula in results_list:
         st.latex(formula)
+
 
 # ------------------------
 # Günlük Grafik
@@ -119,69 +166,56 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
     st.pyplot(fig)
 
 # ------------------------
-# Hesaplama Fonksiyonu (Excel uyumlu)
+# Ortak Hesaplama Fonksiyonu
 # ------------------------
-def calculate_results_excel_style_v2(measurements, extras, lang_texts):
-    valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
-    if len(valid_groups) < 1:
-        st.error("Analiz için en az bir dolu sütun (gün) gerekli!")
+def calculate_results(measurements, extras, lang_texts):
+    valid_groups = [g for g in measurements if len(g) > 0]
+    if len(valid_groups) < 2:
+        st.error("Analiz için en az iki dolu sütun (gün) gerekli!")
         st.stop()
 
-    k = len(valid_groups)
+    means = [np.mean(g) for g in valid_groups]
     ns = [len(g) for g in valid_groups]
     N = sum(ns)
+    k = len(valid_groups)
 
-    means = [np.mean(g) for g in valid_groups]
     grand_mean = np.average(means, weights=ns)
-
     ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
-    df_within = max(N - k, 1)
-    ms_within = ss_within / df_within if df_within > 0 else 0.0
+    ss_between = sum(ns[i] * (means[i] - grand_mean)**2 for i in range(k))
+    df_within = N - k
+    df_between = k - 1
 
-    if k > 1:
-        ss_between = sum(n_i * (m_i - grand_mean)**2 for n_i, m_i in zip(ns, means))
-        df_between = k - 1
-        ms_between = ss_between / df_between if df_between > 0 else 0.0
-        inter_precision = math.sqrt(ms_between)
-    else:
-        inter_precision = 0.0
+    ms_within = ss_within / df_within if df_within > 0 else 0
+    ms_between = ss_between / df_between if df_between > 0 else 0
 
-    repeatability = math.sqrt(ms_within)
+    repeatability = np.sqrt(ms_within)
+    n_eff = np.mean(ns)
+    inter_precision = np.sqrt((ms_between - ms_within) / n_eff) if ms_between > ms_within else 0
+
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
 
-    u_c = math.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
+    u_c = np.sqrt(rel_r**2 + rel_ip**2 + rel_extra**2)
     U = 2 * u_c * grand_mean
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
 
-    # Excel tarzı yuvarlama
-    repeatability = excel_round(repeatability, 3)
-    inter_precision = excel_round(inter_precision, 3)
-    rel_r = excel_round(rel_r, 5)
-    rel_ip = excel_round(rel_ip, 5)
-    rel_extra = excel_round(rel_extra, 5)
-    u_c = excel_round(u_c, 5)
-    U = excel_round(U, 2)
-    U_rel = excel_round(U_rel, 1)
-    grand_mean = excel_round(grand_mean, 2)
-
     results_list = [
-        ("Repeatability", f"{repeatability}", r"s_r = \sqrt{MS_{within}}"),
-        ("Intermediate Precision", f"{inter_precision}", r"s_{IP} = \sqrt{MS_{between}}"),
-        ("Relative Repeatability", f"{rel_r:.5f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
-        ("Relative Intermediate Precision", f"{rel_ip:.5f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}}"),
-        ("Relative Extra Uncertainty", f"{rel_extra:.5f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
-        ("Combined Relative Uncertainty", f"{u_c:.5f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
-        (lang_texts["average_value"], f"{grand_mean}", r"\bar{x} = \frac{\sum x_i}{n}"),
-        (lang_texts["expanded_uncertainty"], f"{U}", r"U = 2 \cdot u_c \cdot \bar{x}"),
-        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
+        ("Repeatability", f"{repeatability:.4f}", r"s_r = \sqrt{MS_{within}}"),
+        ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n_{eff}}}"),
+        ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
+        ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
+        ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
+        ("Combined Relative Uncertainty", f"{u_c:.4f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
+        (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
+        (lang_texts["expanded_uncertainty"], f"{U:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
+        (lang_texts["relative_expanded_uncertainty_col"], f"{U_rel:.4f}", r"U_{rel} = \frac{U}{\bar{x}} \cdot 100")
     ]
 
     return results_list, valid_groups
 
 # ------------------------
-# Manual Mod
+# Elle Giriş Modu
 # ------------------------
 def run_manual_mode(lang_texts):
     st.header(lang_texts["manual_header"])
@@ -220,7 +254,7 @@ def run_manual_mode(lang_texts):
     st.dataframe(df_manual)
 
     if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results_excel_style_v2(measurements, extras, lang_texts)
+        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, lang_texts)
@@ -230,9 +264,10 @@ def run_manual_mode(lang_texts):
                            mime="application/pdf")
 
 # ------------------------
-# Paste Mod
+# Yapıştırarak Giriş Modu
 # ------------------------
 def run_paste_mode(lang_texts):
+    import re
     st.title(lang_texts["paste_title"])
     st.caption(lang_texts["paste_subtitle"])
     pasted_data = st.text_area(lang_texts["paste_area"])
@@ -240,26 +275,54 @@ def run_paste_mode(lang_texts):
         st.stop()
 
     try:
-        lines = pasted_data.strip().splitlines()
+        # Oncelikle ondalık virgul -> nokta
+        pasted_data = pasted_data.replace(',', '.')
+
+        # Satırları al (boş satırları at)
+        lines = [ln.rstrip() for ln in pasted_data.strip().splitlines() if ln.strip() != ""]
+
+        # Hangi ayırıcıyı kullanacağımıza karar ver:
+        use_tab = any('\t' in ln for ln in lines)
+        use_multi_space = any(re.search(r'\s{2,}', ln) for ln in lines)
+
         rows = []
         for line in lines:
-            parts = [x.replace(',', '.') for x in line.split() if x != ""]
+            if use_tab:
+                parts = line.split('\t')                     # tab varsa boş hücreleri korur
+            elif use_multi_space:
+                parts = re.split(r'\s{2,}', line)           # 2+ boşluklı hizalamaya göre ayır
+            else:
+                parts = line.split()                        # son çare: tek boşlukla ayır
+            parts = [p.strip() for p in parts]
             rows.append(parts)
 
+        # Satırlar aynı uzunlukta değilse sağa doğru NaN ile doldur
         max_cols = max(len(r) for r in rows)
         for r in rows:
-            while len(r) < max_cols:
-                r.append(np.nan)
+            if len(r) < max_cols:
+                r += [''] * (max_cols - len(r))
 
-        df = pd.DataFrame(rows, dtype=float)
+        # DataFrame oluştur ve sayısala çevir (hatalı/boş -> NaN)
+        df = pd.DataFrame(rows)
+        df = df.replace('', np.nan)
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
+        df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
+
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         st.stop()
 
-    df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
+    # Göster: eksik hücreleri vurgula (Styler destekliyorsa)
     st.subheader(lang_texts["input_data_table"])
-    st.dataframe(df)
+    try:
+        styled = df.style.applymap(lambda v: 'background-color: #ffcccc' if pd.isna(v) else '')
+        st.dataframe(styled)
+    except Exception:
+        st.dataframe(df)
 
+    # Sonraki adımlar: ölçümleri hazırla ve hesaplama butonu (mevcut kodunla aynı)
     measurements = [df[col].dropna().tolist() for col in df.columns]
 
     overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
@@ -282,7 +345,7 @@ def run_paste_mode(lang_texts):
             extras.append((label, value, rel_val))
 
     if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results_excel_style_v2(measurements, extras, lang_texts)
+        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, lang_texts)
@@ -290,6 +353,15 @@ def run_paste_mode(lang_texts):
                            data=pdf_buffer,
                            file_name="uncertainty_results.pdf",
                            mime="application/pdf")
+
+
+
+
+
+
+
+
+
 
 # ------------------------
 # Main
@@ -299,9 +371,10 @@ def main():
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
 
+    # Varsayılan mod "Yapıştır / Paste" olacak
     mode = st.sidebar.radio("Giriş Modu / Input Mode",
                             ["Yapıştır / Paste", "Elle / Manual"],
-                            index=0)
+                            index=0)  # index=0 → Paste modu varsayılan
 
     if mode.startswith("Elle"):
         run_manual_mode(lang_texts)
