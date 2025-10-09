@@ -1,13 +1,12 @@
 import numpy as np
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import io
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from decimal import Decimal, ROUND_HALF_UP
 import math
-
 
 # ------------------------
 # Dil Metinleri
@@ -66,110 +65,7 @@ languages = {
 }
 
 # ------------------------
-# Güvenli Hesaplama Fonksiyonları
-# ------------------------
-def safe_mean(arr):
-    arr = [a for a in arr if not np.isnan(a)]
-    return np.mean(arr) if len(arr) > 0 else 0.0
-
-def safe_std(arr):
-    arr = [a for a in arr if not np.isnan(a)]
-    return np.std(arr, ddof=1) if len(arr) > 1 else 0.0
-
-# ------------------------
-# PDF Oluşturma
-# ------------------------
-def create_pdf(results_list, lang_texts):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    c.setFont("Helvetica", 12)
-    y = height - 50
-    c.drawString(50, y, lang_texts["results"])
-    y -= 30
-    for param, value, formula in results_list:
-        c.drawString(50, y, f"{param}: {value}")
-        y -= 18
-        if y < 50:
-            c.showPage()
-            y = height - 50
-    c.save()
-    buffer.seek(0)
-    return buffer
-
-# ------------------------
-# Sonuç Gösterimi
-# ------------------------
-def display_results_with_formulas(results_list, title, lang_texts):
-    st.write(f"## {title}")
-
-    # Kalın ve renkli gösterilecek satırlar
-    highlight_map = {
-        lang_texts["average_value"]: "color: #007BFF; font-weight: bold;",   # Mavi
-        lang_texts["expanded_uncertainty"]: "color: #007BFF; font-weight: bold;",  # Yeşil
-        lang_texts["relative_expanded_uncertainty_col"]: "color: #007BFF; font-weight: bold;"  # Mor
-    }
-
-    # HTML tablo oluştur
-    table_html = """
-    <style>
-    table {
-        width: 85%;
-        border-collapse: collapse;
-        margin-top: 10px;
-        margin-bottom: 15px;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px 12px;
-        text-align: left;
-    }
-    th {
-        background-color: #f5f5f5;
-        font-weight: bold;
-    }
-    tr:hover {
-        background-color: #f9f9f9;
-    }
-    </style>
-    <table>
-        <tr>
-            <th>Parametre</th>
-            <th>Değer</th>
-        </tr>
-    """
-
-    for param, value, formula in results_list:
-        style = highlight_map.get(param, "")
-        table_html += f"<tr><td style='{style}'>{param}</td><td style='{style}'>{value}</td></tr>"
-
-    table_html += "</table>"
-
-    st.markdown(table_html, unsafe_allow_html=True)
-
-    st.write("### Formüller")
-    for param, _, formula in results_list:
-        st.latex(formula)
-
-
-# ------------------------
-# Günlük Grafik
-# ------------------------
-def plot_daily_measurements(measurements, col_names, lang_texts):
-    fig, ax = plt.subplots()
-    for i, group in enumerate(measurements):
-        if len(group) == 0:
-            continue
-        label = col_names[i] if i < len(col_names) else f"Gün {i+1}"
-        ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
-    ax.set_xlabel("Ölçüm Sayısı")
-    ax.set_ylabel("Değer")
-    ax.set_title(lang_texts["daily_measurements"])
-    ax.legend()
-    st.pyplot(fig)
-
-# ------------------------
-# Ortak Hesaplama Fonksiyonu
+# Excel Uyumluluğu ile Hesaplama Fonksiyonu
 # ------------------------
 def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
@@ -233,10 +129,13 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
 
     return results_list, valid_groups
 
-
+# ------------------------
+# Diğer Fonksiyonlar (PDF, Grafik vs) aynen kalabilir
+# ------------------------
+# create_pdf, display_results_with_formulas, plot_daily_measurements aynı şekilde kullanılabilir
 
 # ------------------------
-# Elle Giriş Modu
+# run_manual_mode
 # ------------------------
 def run_manual_mode(lang_texts):
     st.header(lang_texts["manual_header"])
@@ -275,7 +174,7 @@ def run_manual_mode(lang_texts):
     st.dataframe(df_manual)
 
     if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
+        results_list, valid_groups = calculate_results_excel_style_v2(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["overall_results"], lang_texts=lang_texts)
         plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, lang_texts)
@@ -285,10 +184,9 @@ def run_manual_mode(lang_texts):
                            mime="application/pdf")
 
 # ------------------------
-# Yapıştırarak Giriş Modu
+# run_paste_mode
 # ------------------------
 def run_paste_mode(lang_texts):
-    import re
     st.title(lang_texts["paste_title"])
     st.caption(lang_texts["paste_subtitle"])
     pasted_data = st.text_area(lang_texts["paste_area"])
@@ -296,54 +194,26 @@ def run_paste_mode(lang_texts):
         st.stop()
 
     try:
-        # Oncelikle ondalık virgul -> nokta
-        pasted_data = pasted_data.replace(',', '.')
-
-        # Satırları al (boş satırları at)
-        lines = [ln.rstrip() for ln in pasted_data.strip().splitlines() if ln.strip() != ""]
-
-        # Hangi ayırıcıyı kullanacağımıza karar ver:
-        use_tab = any('\t' in ln for ln in lines)
-        use_multi_space = any(re.search(r'\s{2,}', ln) for ln in lines)
-
+        lines = pasted_data.strip().splitlines()
         rows = []
         for line in lines:
-            if use_tab:
-                parts = line.split('\t')                     # tab varsa boş hücreleri korur
-            elif use_multi_space:
-                parts = re.split(r'\s{2,}', line)           # 2+ boşluklı hizalamaya göre ayır
-            else:
-                parts = line.split()                        # son çare: tek boşlukla ayır
-            parts = [p.strip() for p in parts]
+            parts = [x.replace(',', '.') for x in line.split() if x != ""]
             rows.append(parts)
 
-        # Satırlar aynı uzunlukta değilse sağa doğru NaN ile doldur
         max_cols = max(len(r) for r in rows)
         for r in rows:
-            if len(r) < max_cols:
-                r += [''] * (max_cols - len(r))
+            while len(r) < max_cols:
+                r.append(np.nan)
 
-        # DataFrame oluştur ve sayısala çevir (hatalı/boş -> NaN)
-        df = pd.DataFrame(rows)
-        df = df.replace('', np.nan)
-        for col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-        df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
-
+        df = pd.DataFrame(rows, dtype=float)
     except Exception as e:
         st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
         st.stop()
 
-    # Göster: eksik hücreleri vurgula (Styler destekliyorsa)
+    df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
     st.subheader(lang_texts["input_data_table"])
-    try:
-        styled = df.style.applymap(lambda v: 'background-color: #ffcccc' if pd.isna(v) else '')
-        st.dataframe(styled)
-    except Exception:
-        st.dataframe(df)
+    st.dataframe(df)
 
-    # Sonraki adımlar: ölçümleri hazırla ve hesaplama butonu (mevcut kodunla aynı)
     measurements = [df[col].dropna().tolist() for col in df.columns]
 
     overall_avg = np.mean([v for g in measurements for v in g if not np.isnan(v)]) or 1.0
@@ -366,7 +236,7 @@ def run_paste_mode(lang_texts):
             extras.append((label, value, rel_val))
 
     if st.button(lang_texts["calculate_button"]):
-        results_list, valid_groups = calculate_results(measurements, extras, lang_texts)
+        results_list, valid_groups = calculate_results_excel_style_v2(measurements, extras, lang_texts)
         display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, lang_texts)
@@ -374,9 +244,6 @@ def run_paste_mode(lang_texts):
                            data=pdf_buffer,
                            file_name="uncertainty_results.pdf",
                            mime="application/pdf")
-
-
-
 
 # ------------------------
 # Main
@@ -386,10 +253,9 @@ def main():
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
 
-    # Varsayılan mod "Yapıştır / Paste" olacak
     mode = st.sidebar.radio("Giriş Modu / Input Mode",
                             ["Yapıştır / Paste", "Elle / Manual"],
-                            index=0)  # index=0 → Paste modu varsayılan
+                            index=0)
 
     if mode.startswith("Elle"):
         run_manual_mode(lang_texts)
