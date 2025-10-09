@@ -172,7 +172,6 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
 # Ortak Hesaplama Fonksiyonu
 # ------------------------
 def calculate_results_excel_style_v2(measurements, extras, lang_texts):
-    # Eksik değerleri çıkar ve numpy array'e çevir
     valid_groups = [np.array([x for x in g if pd.notna(x)], dtype=float) for g in measurements if len(g) > 0]
     if len(valid_groups) < 1:
         st.error("Analiz için en az bir dolu sütun (gün) gerekli!")
@@ -185,9 +184,8 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     means = [np.mean(g) for g in valid_groups]
     grand_mean = np.average(means, weights=ns)
 
-    # ANOVA hesaplamaları
     ss_within = sum(sum((x - np.mean(g))**2 for x in g) for g in valid_groups)
-    df_within = N - k if N - k > 0 else 1  # 1 veya daha fazla gün için korunur
+    df_within = max(N - k, 1)
     ms_within = ss_within / df_within if df_within > 0 else 0.0
 
     if k > 1:
@@ -197,11 +195,9 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     else:
         ms_between = 0.0
 
-    # Excel mantığı ile Repeatability ve Intermediate Precision
     repeatability = math.sqrt(ms_within)
     inter_precision = math.sqrt(ms_between) if k > 1 else 0.0
 
-    # Göreceli belirsizlikler
     rel_r = repeatability / grand_mean if grand_mean != 0 else 0
     rel_ip = inter_precision / grand_mean if grand_mean != 0 else 0
     rel_extra = np.sqrt(sum([r[2]**2 for r in extras])) if extras else 0
@@ -210,7 +206,6 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     U = 2 * u_c * grand_mean
     U_rel = (U / grand_mean) * 100 if grand_mean != 0 else 0
 
-    # Decimal ile Excel uyumlu yuvarlama
     def excel_round(value, digits=4):
         return float(Decimal(value).quantize(Decimal(f"1.{'0'*digits}"), rounding=ROUND_HALF_UP))
 
@@ -228,7 +223,7 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
         ("Repeatability", f"{repeatability}", r"s_r = \sqrt{MS_{within}}"),
         ("Intermediate Precision", f"{inter_precision}", r"s_{IP} = \sqrt{MS_{between}}"),
         ("Relative Repeatability", f"{rel_r:.5f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
-        ("Relative Intermediate Precision", f"{rel_ip:.5f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
+        ("Relative Intermediate Precision", f"{rel_ip:.5f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}}"),
         ("Relative Extra Uncertainty", f"{rel_extra:.5f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
         ("Combined Relative Uncertainty", f"{u_c:.5f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
         (lang_texts["average_value"], f"{grand_mean}", r"\bar{x} = \frac{\sum x_i}{n}"),
@@ -237,6 +232,7 @@ def calculate_results_excel_style_v2(measurements, extras, lang_texts):
     ]
 
     return results_list, valid_groups
+
 
 
 # ------------------------
