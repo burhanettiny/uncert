@@ -315,7 +315,7 @@ def download_sample_csv():
     )
 
 # ---------------------------------------------------
-# 🔍 Validation Mode Fonksiyonu
+# 🔍 Validation Mode
 # ---------------------------------------------------
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
@@ -326,7 +326,6 @@ def run_validation_mode(lang_texts):
         type=["csv", "xlsx"]
     )
 
-    # Eğer session_state'te df yoksa başlat
     if "df" not in st.session_state:
         st.session_state["df"] = None
 
@@ -353,18 +352,27 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyarı ver ---
+    # --- Veri yoksa uyarı ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
         st.stop()
 
-    # --- Referans kolonu varsa ayır ---
     reference_col = df["Reference"] if "Reference" in df.columns else None
 
-    # --- Veri tablosunu göster ---
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
+
+    # --- Beklenen değer giriş kutusu ---
+    expected_value = st.number_input(
+        "Beklenen Değer (Referans Ortalama)",
+        min_value=0.0,
+        value=float(df.mean().mean()),
+        step=0.01,
+        format="%.2f"
+    )
+
+    tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
     # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
@@ -374,16 +382,29 @@ def run_validation_mode(lang_texts):
             st.error("Veri bulunamadı. Lütfen geçerli bir dosya yükleyin veya örnek verileri seçin.")
             st.stop()
 
-        # --- Hesaplama ve gösterim ---
+        # --- Hesaplama sonuçları (örnek placeholder fonksiyonlar yerine senin mevcut fonksiyonlarını çağır) ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
-        display_results_with_formulas(results_list, title=lang_texts.get("results", "Sonuçlar"), lang_texts=lang_texts)
 
+        # ---------------------------------------------------
+        # ✅ Ek sütunlar: Beklenen Değer & Sonuç
+        # ---------------------------------------------------
+        df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer"])
+        df_results["Beklenen Değer"] = expected_value
+        df_results["Sonuç"] = df_results["Değer"].apply(
+            lambda x: "✅ Geçti" if abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
+        )
+
+        # --- Sonuç tablosunu göster ---
+        st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
+        st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
+
+        # --- ANOVA tablosu ---
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
         plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
-        # --- Referans kontrolü (isteğe bağlı) ---
+        # --- Referans kontrolü ---
         if reference_col is not None:
             grand_mean = float(results_list[6][1])
             deviations = np.abs(grand_mean - reference_col)
@@ -401,7 +422,7 @@ def run_validation_mode(lang_texts):
             else:
                 st.success("Tüm ölçümler referans ile uyumlu.")
 
-        # --- PDF indirme ---
+        # --- PDF İndirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(
             label=lang_texts.get("download_pdf", "📄 PDF İndir"),
