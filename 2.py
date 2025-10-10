@@ -309,10 +309,12 @@ def download_sample_csv():
 """
     st.download_button(
         label="📥 Örnek CSV İndir",
-        data=sample_data,
+        data=sample_data.encode("utf-8"),  # UTF-8 eklenmeli, Türkçe karakter güvenliği için
         file_name="sample_data.csv",
         mime="text/csv"
     )
+
+
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
@@ -338,11 +340,15 @@ def run_validation_mode(lang_texts):
 
     # --- Eğer kullanıcı dosya yüklediyse onu kullan ---
     if uploaded_file is not None:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        else:
-            df = pd.read_excel(uploaded_file)
-        st.success(f"{uploaded_file.name} yüklendi ✅")
+        try:
+            if uploaded_file.name.endswith(".csv"):
+                df = pd.read_csv(uploaded_file)
+            else:
+                df = pd.read_excel(uploaded_file)
+            st.success(f"{uploaded_file.name} yüklendi ✅")
+        except Exception as e:
+            st.error(f"Dosya okunamadı: {e}")
+            st.stop()
 
     # --- Eğer hâlâ veri yoksa uyarı ver ---
     if df is None:
@@ -350,26 +356,23 @@ def run_validation_mode(lang_texts):
         st.stop()
 
     # --- Referans kolonu varsa ayır ---
-    if "Reference" in df.columns:
-        reference_col = df["Reference"]
-    else:
-        reference_col = None
+    reference_col = df["Reference"] if "Reference" in df.columns else None
 
     # --- Veri tablosunu göster ---
-    st.subheader(lang_texts["input_data_table"])
+    st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
     # --- Kullanıcının hesaplama başlatması için buton ---
-    if st.button(lang_texts["calculate_button"]):
+    if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
         measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
+
+        # --- Hesaplama çağrısı ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
         # --- Sonuçların gösterimi ---
-        display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
-        st.subheader(lang_texts["anova_table_label"])
-        st.dataframe(
-            anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"})
-        )
+        display_results_with_formulas(results_list, title=lang_texts.get("results", "Sonuçlar"), lang_texts=lang_texts)
+        st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
         # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
@@ -378,16 +381,16 @@ def run_validation_mode(lang_texts):
         if reference_col is not None:
             grand_mean = float(results_list[6][1])
             deviations = np.abs(grand_mean - reference_col)
+            deviation_df = pd.DataFrame({
+                "Reference": reference_col,
+                "Calculated Mean": grand_mean,
+                "Deviation": deviations,
+                "Deviation (%)": deviations / grand_mean * 100
+            })
             st.write("### Sapma Kontrolü")
-            st.dataframe(
-                pd.DataFrame({
-                    "Reference": reference_col,
-                    "Calculated Mean": grand_mean,
-                    "Deviation": deviations,
-                    "Deviation (%)": deviations / grand_mean * 100
-                }).style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"})
-            )
-            if any(deviations / grand_mean * 100 > 5):
+            st.dataframe(deviation_df.style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"}))
+
+            if any(deviation_df["Deviation (%)"] > 5):
                 st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
             else:
                 st.success("Tüm ölçümler referans ile uyumlu.")
@@ -395,7 +398,7 @@ def run_validation_mode(lang_texts):
         # --- PDF indirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(
-            label=lang_texts["download_pdf"],
+            label=lang_texts.get("download_pdf", "📄 PDF İndir"),
             data=pdf_buffer,
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
