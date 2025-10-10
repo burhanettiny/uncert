@@ -300,7 +300,9 @@ def run_paste_mode(lang_texts):
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
 
-    # --- Örnek veri butonu ---
+    # ------------------------
+    # Örnek veri butonu
+    # ------------------------
     if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
         default_data = {
             "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
@@ -310,24 +312,61 @@ def run_validation_mode(lang_texts):
         st.session_state["df"] = pd.DataFrame(default_data)
         st.success("Örnek veriler başarıyla yüklendi ✅")
 
-    # --- Boş tablo / Excel’den kopyala-yapıştır için ---
+    # ------------------------
+    # Excel’den kopyala-yapıştır
+    # ------------------------
+    st.subheader("📋 Verilerinizi buraya yapıştırabilirsiniz (Excel’den kopyala-yapıştır)")
+    pasted_data = st.text_area("Veri giriş alanı", height=200, placeholder="Örnek: 1,85\t1,99\t1,94\n1,99\t1,88\t1,91\n...")
+
+    df = None
+    if pasted_data.strip():
+        try:
+            pasted_data = pasted_data.replace(',', '.')
+            lines = [ln.rstrip() for ln in pasted_data.strip().splitlines() if ln.strip() != ""]
+            use_tab = any('\t' in ln for ln in lines)
+            use_multi_space = any(re.search(r'\s{2,}', ln) for ln in lines)
+            rows = []
+            for line in lines:
+                if use_tab:
+                    parts = line.split('\t')
+                elif use_multi_space:
+                    parts = re.split(r'\s{2,}', line)
+                else:
+                    parts = line.split()
+                parts = [p.strip() for p in parts]
+                rows.append(parts)
+
+            max_cols = max(len(r) for r in rows)
+            for r in rows:
+                if len(r) < max_cols:
+                    r += [''] * (max_cols - len(r))
+
+            df = pd.DataFrame(rows)
+            df = df.replace('', np.nan)
+            for col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            df.columns = [f"{i+1}. Gün" for i in range(df.shape[1])]
+            st.session_state["df"] = df
+            st.success("Yapıştırılan veriler başarıyla işlendi ✅")
+
+        except Exception as e:
+            st.error(f"Hata! Lütfen verileri doğru formatta yapıştırın. ({str(e)})")
+            st.stop()
+
+    # ------------------------
+    # Veri yoksa uyarı
+    # ------------------------
     if "df" not in st.session_state or st.session_state["df"] is None:
-        st.session_state["df"] = pd.DataFrame(columns=["1. Gün", "2. Gün", "3. Gün"])
+        st.info("Lütfen Excel’den verilerinizi yapıştırın veya örnek verileri yükleyin.")
+        st.stop()
 
-    st.subheader("Verilerinizi buraya yapıştırabilirsiniz (Excel’den kopyala-yapıştır)")
-    df_input = st.data_editor(st.session_state["df"], num_rows="dynamic")
+    df = st.session_state["df"]
+    st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
+    st.dataframe(df)
 
-    # --- Virgül düzeltme ve float'a çevirme ---
-    df_clean = df_input.applymap(
-        lambda x: float(str(x).replace(",", ".")) if x not in [None, ""] else np.nan
-    )
-    st.session_state["df"] = df_clean
-
-    # --- Boş hücre kontrolü ---
-    if df_clean.isnull().values.any():
-        st.warning("Tablonuzda boş hücreler var! Bu hücreler hesaplamalarda NaN olarak değerlendirilecektir.")
-
-    # --- Parametre bazlı beklenen değer girişi ---
+    # ------------------------
+    # Beklenen değerler
+    # ------------------------
     st.subheader("Beklenen Değerler (Parametre Bazlı)")
     parameters = [
         "Repeatability", "Intermediate Precision", "Relative Repeatability",
@@ -342,9 +381,10 @@ def run_validation_mode(lang_texts):
 
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
-    # --- Hesaplama butonu ---
+    # ------------------------
+    # Hesaplama
+    # ------------------------
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
-        df = st.session_state["df"]
         measurements = [df[col].dropna().tolist() for col in df.columns]
 
         if not measurements or df.empty:
@@ -355,16 +395,10 @@ def run_validation_mode(lang_texts):
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
         # --- Sonuç DataFrame ---
-        try:
-            df_results = pd.DataFrame({
-                "Parametre": parameters,
-                "Değer": [row[1] if len(row) > 1 else None for row in results_list]
-            })
-        except Exception as e:
-            st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
-            st.stop()
-
-        # Değer sütununu float yap
+        df_results = pd.DataFrame({
+            "Parametre": parameters,
+            "Değer": [row[1] if len(row) > 1 else None for row in results_list]
+        })
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
         df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
 
@@ -377,7 +411,7 @@ def run_validation_mode(lang_texts):
             axis=1
         )
 
-        # --- Sonuç tablosunu göster ---
+        # --- Sonuç tablosu ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
