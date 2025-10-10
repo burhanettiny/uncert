@@ -314,23 +314,43 @@ def download_sample_csv():
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
-    uploaded_file = st.file_uploader("CSV veya Excel dosyası yükleyin", type=["csv", "xlsx"])
+    uploaded_file = st.file_uploader("CSV veya Excel dosyası yükleyin (boş bırakırsanız varsayılan veriler kullanılır)", type=["csv", "xlsx"])
+
+    # --- Varsayılan veriler ---
+    default_data = {
+        "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
+        "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
+        "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
+    }
+    df_default = pd.DataFrame(default_data)
+
+    # --- Kullanıcı dosya yüklemediyse varsayılan verileri kullan ---
     if not uploaded_file:
-        st.stop()
-    if uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file)
+        st.info("Dosya yüklenmedi — varsayılan örnek veriler kullanılıyor.")
+        df = df_default
     else:
-        df = pd.read_excel(uploaded_file)
+        if uploaded_file.name.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+
+    # --- Referans kolonu varsa ayır ---
     if "Reference" in df.columns:
         reference_col = df["Reference"]
     else:
         reference_col = None
+
+    # --- Hesaplama ---
     measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
     results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
+
+    # --- Sonuçların gösterimi ---
     display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
     st.subheader(lang_texts["anova_table_label"])
     st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
     plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
+
+    # --- Referans karşılaştırması (isteğe bağlı) ---
     if reference_col is not None:
         grand_mean = float(results_list[6][1])
         deviations = np.abs(grand_mean - reference_col)
@@ -345,6 +365,8 @@ def run_validation_mode(lang_texts):
             st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
         else:
             st.success("Tüm ölçümler referans ile uyumlu.")
+
+    # --- PDF indirme ---
     pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
     st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_validation.pdf", mime="application/pdf")
 
