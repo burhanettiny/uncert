@@ -297,34 +297,42 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
+import streamlit as st
+import pandas as pd
+import numpy as np
+
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
 
-    # --- Başlangıçta boş tablo veya session_state kontrolü ---
-    if "df" not in st.session_state:
-        st.session_state["df"] = pd.DataFrame(
-            [[None, None, None] for _ in range(5)], 
-            columns=["1. Gün", "2. Gün", "3. Gün"]
-        )
-
-    # --- Örnek veri yükleme butonu ---
-    if st.button("📊 Örnek Verileri Yükle / Load Sample Data"):
+    # --- Örnek veri butonu ---
+    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
         default_data = {
             "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
             "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
             "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
         }
         st.session_state["df"] = pd.DataFrame(default_data)
-        st.success("Örnek veriler yüklendi ✅")
+        st.success("Örnek veriler başarıyla yüklendi ✅")
 
-    # --- Veri girişi / kopyala-yapıştır ---
-    st.subheader("Girdi Verileri (Boş Hücreleri Doldurun veya Kopyala-Yapıştır Yapın)")
-    df = st.data_editor(st.session_state["df"], num_rows="dynamic")
-    st.session_state["df"] = df
+    # --- Boş veri tablosu / Excel’den kopyala-yapıştır için ---
+    if "df" not in st.session_state or st.session_state["df"] is None:
+        st.session_state["df"] = pd.DataFrame(columns=["1. Gün", "2. Gün", "3. Gün"])
 
-    # --- Beklenen değerler (Parametre bazlı) ---
-    st.subheader("Beklenen Değerler")
-    expected_values = {}
+    st.subheader("Verilerinizi buraya yapıştırabilirsiniz (Excel’den kopyala-yapıştır)")
+    df_input = st.data_editor(st.session_state["df"], num_rows="dynamic")
+
+    # --- Virgül düzeltme ve float'a çevirme ---
+    df_clean = df_input.applymap(
+        lambda x: float(str(x).replace(",", ".")) if x not in [None, ""] else np.nan
+    )
+    st.session_state["df"] = df_clean
+
+    # --- Boş hücre kontrolü ---
+    if df_clean.isnull().values.any():
+        st.warning("Tablonuzda boş hücreler var! Bu hücreler hesaplamalarda NaN olarak değerlendirilecektir.")
+
+    # --- Parametre bazlı beklenen değer girişi ---
+    st.subheader("Beklenen Değerler (Parametre Bazlı)")
     parameters = [
         "Repeatability", "Intermediate Precision", "Relative Repeatability",
         "Relative Intermediate Precision", "Relative Extra Uncertainty",
@@ -332,20 +340,22 @@ def run_validation_mode(lang_texts):
         "Genişletilmiş Belirsizlik (k=2)",
         "Göreceli Genişletilmiş Belirsizlik (%)"
     ]
+    expected_values = {}
     for p in parameters:
         expected_values[p] = st.number_input(f"{p}", min_value=0.0, value=0.0, step=0.01, format="%.5f")
 
-    # --- Tolerans ---
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
-    # --- Hesaplama ---
+    # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
+        df = st.session_state["df"]
         measurements = [df[col].dropna().tolist() for col in df.columns]
 
-        if not measurements or all(len(lst) == 0 for lst in measurements):
-            st.error("Lütfen tabloyu doldurun veya örnek verileri yükleyin.")
+        if not measurements or df.empty:
+            st.error("Veri bulunamadı. Lütfen geçerli veriler girin veya örnek verileri yükleyin.")
             st.stop()
 
+        # --- Hesaplama (calculate_results fonksiyonun) ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
         # --- Sonuç DataFrame ---
@@ -358,10 +368,11 @@ def run_validation_mode(lang_texts):
             st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
             st.stop()
 
+        # Değer sütununu float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
         df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
 
-        # ZeroDivisionError önlemesi
+        # --- Sonuç (Geçti/Kaldı) ---
         df_results["Sonuç"] = df_results.apply(
             lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and (
                 (row["Beklenen Değer"] == 0 and row["Değer"] == 0) or
@@ -370,15 +381,17 @@ def run_validation_mode(lang_texts):
             axis=1
         )
 
+        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
-        # --- ANOVA ---
+        # --- ANOVA tablosu ---
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
         # --- Günlük ölçüm grafiği ---
-        plot_daily_measurements(valid_groups, [col for col in df.columns], lang_texts)
+        plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
+
 
         # --- PDF ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
