@@ -297,10 +297,6 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
-import streamlit as st
-import pandas as pd
-import numpy as np
-
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
 
@@ -314,7 +310,7 @@ def run_validation_mode(lang_texts):
         st.session_state["df"] = pd.DataFrame(default_data)
         st.success("Örnek veriler başarıyla yüklendi ✅")
 
-    # --- Boş veri tablosu / Excel’den kopyala-yapıştır için ---
+    # --- Boş tablo / Excel’den kopyala-yapıştır için ---
     if "df" not in st.session_state or st.session_state["df"] is None:
         st.session_state["df"] = pd.DataFrame(columns=["1. Gün", "2. Gün", "3. Gün"])
 
@@ -355,7 +351,7 @@ def run_validation_mode(lang_texts):
             st.error("Veri bulunamadı. Lütfen geçerli veriler girin veya örnek verileri yükleyin.")
             st.stop()
 
-        # --- Hesaplama (calculate_results fonksiyonun) ---
+        # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
         # --- Sonuç DataFrame ---
@@ -391,16 +387,6 @@ def run_validation_mode(lang_texts):
 
         # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
-
-
-        # --- PDF ---
-        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-        st.download_button(
-            label=lang_texts.get("download_pdf", "📄 PDF İndir"),
-            data=pdf_buffer,
-            file_name="uncertainty_results_validation.pdf",
-            mime="application/pdf"
-        )
 
 # ------------------------
 # Main
