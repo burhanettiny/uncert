@@ -314,7 +314,10 @@ def download_sample_csv():
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
-    uploaded_file = st.file_uploader("CSV veya Excel dosyası yükleyin (boş bırakırsanız varsayılan veriler kullanılır)", type=["csv", "xlsx"])
+    uploaded_file = st.file_uploader(
+        "CSV veya Excel dosyası yükleyin (boş bırakırsanız varsayılan veriler kullanılır)",
+        type=["csv", "xlsx"]
+    )
 
     # --- Varsayılan veriler ---
     default_data = {
@@ -324,7 +327,7 @@ def run_validation_mode(lang_texts):
     }
     df_default = pd.DataFrame(default_data)
 
-    # --- Kullanıcı dosya yüklemediyse varsayılan verileri kullan ---
+    # --- Dosya yüklenmemişse varsayılanı kullan ---
     if not uploaded_file:
         st.info("Dosya yüklenmedi — varsayılan örnek veriler kullanılıyor.")
         df = df_default
@@ -340,6 +343,10 @@ def run_validation_mode(lang_texts):
     else:
         reference_col = None
 
+    # --- Girilen verilerin gösterimi ---
+    st.subheader(lang_texts["input_data_table"])
+    st.dataframe(df.style.format("{:.2f}"))
+
     # --- Hesaplama ---
     measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
     results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
@@ -347,7 +354,11 @@ def run_validation_mode(lang_texts):
     # --- Sonuçların gösterimi ---
     display_results_with_formulas(results_list, title=lang_texts["results"], lang_texts=lang_texts)
     st.subheader(lang_texts["anova_table_label"])
-    st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+    st.dataframe(
+        anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"})
+    )
+
+    # --- Günlük ölçüm grafiği ---
     plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
     # --- Referans karşılaştırması (isteğe bağlı) ---
@@ -355,12 +366,14 @@ def run_validation_mode(lang_texts):
         grand_mean = float(results_list[6][1])
         deviations = np.abs(grand_mean - reference_col)
         st.write("### Sapma Kontrolü")
-        st.dataframe(pd.DataFrame({
-            "Reference": reference_col,
-            "Calculated Mean": grand_mean,
-            "Deviation": deviations,
-            "Deviation (%)": deviations / grand_mean * 100
-        }))
+        st.dataframe(
+            pd.DataFrame({
+                "Reference": reference_col,
+                "Calculated Mean": grand_mean,
+                "Deviation": deviations,
+                "Deviation (%)": deviations / grand_mean * 100
+            }).style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"})
+        )
         if any(deviations / grand_mean * 100 > 5):
             st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
         else:
@@ -368,8 +381,12 @@ def run_validation_mode(lang_texts):
 
     # --- PDF indirme ---
     pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-    st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_validation.pdf", mime="application/pdf")
-
+    st.download_button(
+        label=lang_texts["download_pdf"],
+        data=pdf_buffer,
+        file_name="uncertainty_results_validation.pdf",
+        mime="application/pdf"
+    )
 # ------------------------
 # Main
 # ------------------------
