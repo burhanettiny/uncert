@@ -315,13 +315,16 @@ def download_sample_csv():
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
 
-    if "df" not in st.session_state:
-        st.session_state["df"] = None
+    # --- Örnek CSV indir ---
+    download_sample_csv()
 
     uploaded_file = st.file_uploader(
         "CSV veya Excel dosyası yükleyin (ya da aşağıdaki butona basarak örnek verileri kullanın)",
         type=["csv", "xlsx"]
     )
+
+    if "df" not in st.session_state:
+        st.session_state["df"] = None
 
     # --- Örnek veri butonu ---
     if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
@@ -346,7 +349,7 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyar ---
+    # --- Veri yoksa uyarı ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
@@ -357,20 +360,19 @@ def run_validation_mode(lang_texts):
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
-    # --- Kullanıcıdan beklenen değerleri girmesini iste ---
-    st.subheader("Beklenen Değerler (her parametre için)")
+    # --- Kullanıcının beklenen değerleri gireceği input ---
+    st.subheader("Beklenen Değerler (Parametre Bazlı)")
     expected_values = {}
-    for col in df.columns:
-        if col != "Reference":
-            expected_values[col] = st.number_input(
-                f"{col} için beklenen değer",
-                min_value=0.0,
-                value=float(df[col].mean()),  # default olarak sütun ortalaması
-                step=0.01,
-                format="%.2f"
-            )
+    parameters = [
+        "Repeatability", "Intermediate Precision", "Relative Repeatability",
+        "Relative Intermediate Precision", "Relative Extra Uncertainty",
+        "Combined Relative Uncertainty", "Ortalama Değer",
+        "Genişletilmiş Belirsizlik (k=2)",
+        "Göreceli Genişletilmiş Belirsizlik (%)"
+    ]
+    for p in parameters:
+        expected_values[p] = st.number_input(f"{p}", min_value=0.0, value=0.0, step=0.01, format="%.5f")
 
-    # --- Tolerans ---
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
     # --- Hesaplama butonu ---
@@ -384,31 +386,23 @@ def run_validation_mode(lang_texts):
         # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-        # --- Sonuç listesi DataFrame ---
+        # --- Sonuç DataFrame ---
         try:
-            df_results = pd.DataFrame(results_list)
-            if df_results.shape[1] >= 2:
-                df_results.columns = ["Parametre", "Değer"] + [f"Ek_{i}" for i in range(df_results.shape[1]-2)]
-            else:
-                st.error("Hesaplama sonucu beklenen formatta değil.")
-                st.stop()
+            df_results = pd.DataFrame({
+                "Parametre": parameters,
+                "Değer": [row[1] if len(row) > 1 else None for row in results_list]
+            })
         except Exception as e:
             st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
             st.stop()
 
-        # Değer sütununu float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
-
-        # --- Satır bazlı beklenen değer ---
-        df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, float(df.mean().mean())))
-
-        # --- Sonuç (Geçti/Kaldı) ---
+        df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
         df_results["Sonuç"] = df_results.apply(
             lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and abs((row["Değer"] - row["Beklenen Değer"]) / row["Beklenen Değer"] * 100) <= tolerance else "❌ Kaldı",
             axis=1
         )
 
-        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
