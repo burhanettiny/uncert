@@ -388,11 +388,28 @@ def run_validation_mode(lang_texts):
         # ---------------------------------------------------
         # ✅ Ek sütunlar: Beklenen Değer & Sonuç
         # ---------------------------------------------------
-        df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer"])
-        df_results["Beklenen Değer"] = expected_value
-        df_results["Sonuç"] = df_results["Değer"].apply(
-            lambda x: "✅ Geçti" if abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
-        )
+        # --- results_list içeriğini kontrol et ---
+try:
+    df_results = pd.DataFrame(results_list)
+    if df_results.shape[1] >= 2:
+        df_results.columns = ["Parametre", "Değer"] + [f"Ek_{i}" for i in range(df_results.shape[1]-2)]
+    else:
+        st.error("Hesaplama sonucu beklenen formatta değil.")
+        st.stop()
+except Exception as e:
+    st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
+    st.stop()
+
+# --- Beklenen değer & geçme-kalma sütunları ekle ---
+df_results["Beklenen Değer"] = expected_value
+df_results["Sonuç"] = df_results["Değer"].apply(
+    lambda x: "✅ Geçti" if isinstance(x, (int, float)) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
+)
+
+# --- Sonuç tablosunu göster ---
+st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
+st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
+
 
         # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
