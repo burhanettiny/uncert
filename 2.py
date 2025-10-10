@@ -297,20 +297,46 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
+def download_sample_csv():
+    sample_data = """1. Gün,2. Gün,3. Gün
+34644.38,34324.02,35447.87
+35909.45,37027.40,35285.81
+33255.74,31319.64,34387.56
+33498.69,34590.12,35724.35
+33632.45,34521.42,36236.50
+"""
+    st.download_button(
+        label="📥 Örnek CSV İndir",
+        data=sample_data,
+        file_name="sample_data.csv",
+        mime="text/csv"
+    )
+
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
 
-    # --- Boş veri giriş tablosu (kopyala-yapıştır için) ---
-    st.subheader("Girdi Verileri (1. Gün, 2. Gün, 3. Gün vb.)")
-    if "df" not in st.session_state:
-        # Başlangıçta 5 satır ve 3 sütunluk boş tablo
-        st.session_state["df"] = pd.DataFrame(
-            [[None, None, None] for _ in range(5)],
-            columns=["1. Gün", "2. Gün", "3. Gün"]
-        )
+    # --- Örnek CSV indir ---
+    download_sample_csv()
 
-    df = st.data_editor(st.session_state["df"], num_rows="dynamic")
-    st.session_state["df"] = df
+    # --- Örnek veri butonu ---
+    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
+        default_data = {
+            "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
+            "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
+            "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
+        }
+        st.session_state["df"] = pd.DataFrame(default_data)
+        st.success("Örnek veriler başarıyla yüklendi ✅")
+    else:
+        st.warning("Lütfen önce 'Örnek Verileri Yükle' butonuna basın.")
+
+    # --- Veri ---
+    df = st.session_state.get("df")
+    if df is None:
+        st.stop()
+
+    st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
+    st.dataframe(df.style.format("{:.2f}"))
 
     # --- Kullanıcının beklenen değerleri gireceği input ---
     st.subheader("Beklenen Değerler (Parametre Bazlı)")
@@ -329,11 +355,10 @@ def run_validation_mode(lang_texts):
 
     # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
-        # Kullanıcının girdiği tabloyu listeye çevir
         measurements = [df[col].dropna().tolist() for col in df.columns]
 
-        if not measurements or all(len(lst) == 0 for lst in measurements):
-            st.error("Veri bulunamadı. Lütfen tabloyu doldurun.")
+        if not measurements:
+            st.error("Veri bulunamadı. Lütfen örnek verileri yükleyin.")
             st.stop()
 
         # --- Hesaplama ---
@@ -350,7 +375,11 @@ def run_validation_mode(lang_texts):
             st.stop()
 
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
+
+        # Kullanıcının girdiği beklenen değerleri kullan
         df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
+
+        # Sonuç (Geçti/Kaldı) hesaplaması, Beklenen Değer 0 ise ZeroDivision hatasını önle
         df_results["Sonuç"] = df_results.apply(
             lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and (
                 (row["Beklenen Değer"] == 0 and row["Değer"] == 0) or
@@ -359,6 +388,7 @@ def run_validation_mode(lang_texts):
             axis=1
         )
 
+        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
@@ -377,6 +407,7 @@ def run_validation_mode(lang_texts):
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
         )
+
 # ------------------------
 # Main
 # ------------------------
