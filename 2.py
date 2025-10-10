@@ -318,14 +318,6 @@ def run_validation_mode(lang_texts):
     # --- Örnek CSV indir ---
     download_sample_csv()
 
-    uploaded_file = st.file_uploader(
-        "CSV veya Excel dosyası yükleyin (ya da aşağıdaki butona basarak örnek verileri kullanın)",
-        type=["csv", "xlsx"]
-    )
-
-    if "df" not in st.session_state:
-        st.session_state["df"] = None
-
     # --- Örnek veri butonu ---
     if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
         default_data = {
@@ -335,27 +327,13 @@ def run_validation_mode(lang_texts):
         }
         st.session_state["df"] = pd.DataFrame(default_data)
         st.success("Örnek veriler başarıyla yüklendi ✅")
+    else:
+        st.warning("Lütfen önce 'Örnek Verileri Yükle' butonuna basın.")
 
-    # --- Dosya yüklenirse ---
-    if uploaded_file is not None:
-        try:
-            if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
-            st.session_state["df"] = df
-            st.success(f"{uploaded_file.name} yüklendi ✅")
-        except Exception as e:
-            st.error(f"Dosya okunamadı: {e}")
-            st.stop()
-
-    # --- Veri yoksa uyarı ---
-    df = st.session_state["df"]
+    # --- Veri ---
+    df = st.session_state.get("df")
     if df is None:
-        st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
         st.stop()
-
-    reference_col = df["Reference"] if "Reference" in df.columns else None
 
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
@@ -377,10 +355,10 @@ def run_validation_mode(lang_texts):
 
     # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
-        measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
+        measurements = [df[col].dropna().tolist() for col in df.columns]
 
         if not measurements:
-            st.error("Veri bulunamadı. Lütfen geçerli bir dosya yükleyin veya örnek verileri seçin.")
+            st.error("Veri bulunamadı. Lütfen örnek verileri yükleyin.")
             st.stop()
 
         # --- Hesaplama ---
@@ -398,7 +376,7 @@ def run_validation_mode(lang_texts):
 
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
 
-        # Kullanıcının girdiği beklenen değerleri kullan (varsayılan 0.0)
+        # Kullanıcının girdiği beklenen değerleri kullan
         df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
 
         # Sonuç (Geçti/Kaldı) hesaplaması, Beklenen Değer 0 ise ZeroDivision hatasını önle
@@ -419,25 +397,7 @@ def run_validation_mode(lang_texts):
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
         # --- Günlük ölçüm grafiği ---
-        plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
-
-        # --- Referans kontrolü ---
-        if reference_col is not None:
-            grand_mean = float(results_list[6][1])
-            deviations = np.abs(grand_mean - reference_col)
-            deviation_df = pd.DataFrame({
-                "Reference": reference_col,
-                "Calculated Mean": grand_mean,
-                "Deviation": deviations,
-                "Deviation (%)": deviations / grand_mean * 100
-            })
-            st.write("### Sapma Kontrolü")
-            st.dataframe(deviation_df.style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"}))
-
-            if any(deviation_df["Deviation (%)"] > 5):
-                st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
-            else:
-                st.success("Tüm ölçümler referans ile uyumlu.")
+        plot_daily_measurements(valid_groups, [col for col in df.columns], lang_texts)
 
         # --- PDF İndirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
@@ -447,7 +407,6 @@ def run_validation_mode(lang_texts):
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
         )
-
 # ------------------------
 # Main
 # ------------------------
