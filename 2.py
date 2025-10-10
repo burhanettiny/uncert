@@ -386,68 +386,67 @@ def run_validation_mode(lang_texts):
         # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-# --- Sonuç DataFrame ---
-try:
-    df_results = pd.DataFrame({
-        "Parametre": parameters,
-        "Değer": [row[1] if len(row) > 1 else None for row in results_list]
-    })
-except Exception as e:
-    st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
-    st.stop()
+        # --- Sonuç DataFrame ---
+        try:
+            df_results = pd.DataFrame({
+                "Parametre": parameters,
+                "Değer": [row[1] if len(row) > 1 else None for row in results_list]
+            })
+        except Exception as e:
+            st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
+            st.stop()
 
-# Değer sütununu float yap
-df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
+        df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
 
-# Kullanıcının girdiği beklenen değerleri kullan (varsayılan 0.0)
-df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
+        # Kullanıcının girdiği beklenen değerleri kullan (varsayılan 0.0)
+        df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, 0.0))
 
-# Sonuç (Geçti/Kaldı) hesaplaması, Beklenen Değer 0 ise ZeroDivision hatasını önle
-df_results["Sonuç"] = df_results.apply(
-    lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and (
-        (row["Beklenen Değer"] == 0 and row["Değer"] == 0) or
-        (row["Beklenen Değer"] != 0 and abs((row["Değer"] - row["Beklenen Değer"]) / row["Beklenen Değer"] * 100) <= tolerance)
-    ) else "❌ Kaldı",
-    axis=1
-)
+        # Sonuç (Geçti/Kaldı) hesaplaması, Beklenen Değer 0 ise ZeroDivision hatasını önle
+        df_results["Sonuç"] = df_results.apply(
+            lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and (
+                (row["Beklenen Değer"] == 0 and row["Değer"] == 0) or
+                (row["Beklenen Değer"] != 0 and abs((row["Değer"] - row["Beklenen Değer"]) / row["Beklenen Değer"] * 100) <= tolerance)
+            ) else "❌ Kaldı",
+            axis=1
+        )
 
-# --- Sonuç tablosunu göster ---
-st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
-st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
+        # --- Sonuç tablosunu göster ---
+        st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
+        st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
-# --- ANOVA tablosu ---
-st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
-st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
+        # --- ANOVA tablosu ---
+        st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
+        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
-# --- Günlük ölçüm grafiği ---
-plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
+        # --- Günlük ölçüm grafiği ---
+        plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
-# --- Referans kontrolü ---
-if reference_col is not None:
-    grand_mean = float(results_list[6][1])
-    deviations = np.abs(grand_mean - reference_col)
-    deviation_df = pd.DataFrame({
-        "Reference": reference_col,
-        "Calculated Mean": grand_mean,
-        "Deviation": deviations,
-        "Deviation (%)": deviations / grand_mean * 100
-    })
-    st.write("### Sapma Kontrolü")
-    st.dataframe(deviation_df.style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"}))
+        # --- Referans kontrolü ---
+        if reference_col is not None:
+            grand_mean = float(results_list[6][1])
+            deviations = np.abs(grand_mean - reference_col)
+            deviation_df = pd.DataFrame({
+                "Reference": reference_col,
+                "Calculated Mean": grand_mean,
+                "Deviation": deviations,
+                "Deviation (%)": deviations / grand_mean * 100
+            })
+            st.write("### Sapma Kontrolü")
+            st.dataframe(deviation_df.style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"}))
 
-    if any(deviation_df["Deviation (%)"] > 5):
-        st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
-    else:
-        st.success("Tüm ölçümler referans ile uyumlu.")
+            if any(deviation_df["Deviation (%)"] > 5):
+                st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
+            else:
+                st.success("Tüm ölçümler referans ile uyumlu.")
 
-# --- PDF İndirme ---
-pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-st.download_button(
-    label=lang_texts.get("download_pdf", "📄 PDF İndir"),
-    data=pdf_buffer,
-    file_name="uncertainty_results_validation.pdf",
-    mime="application/pdf"
-)
+        # --- PDF İndirme ---
+        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        st.download_button(
+            label=lang_texts.get("download_pdf", "📄 PDF İndir"),
+            data=pdf_buffer,
+            file_name="uncertainty_results_validation.pdf",
+            mime="application/pdf"
+        )
 
 # ------------------------
 # Main
