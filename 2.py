@@ -326,6 +326,7 @@ def run_validation_mode(lang_texts):
         type=["csv", "xlsx"]
     )
 
+    # session_state'te df yoksa başlat
     if "df" not in st.session_state:
         st.session_state["df"] = None
 
@@ -352,7 +353,7 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyarı ---
+    # --- Veri yoksa uyar ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
@@ -363,7 +364,7 @@ def run_validation_mode(lang_texts):
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
-    # --- Beklenen değer giriş kutusu ---
+    # --- Beklenen değer & tolerans ---
     expected_value = st.number_input(
         "Beklenen Değer (Referans Ortalama)",
         min_value=0.0,
@@ -371,7 +372,6 @@ def run_validation_mode(lang_texts):
         step=0.01,
         format="%.2f"
     )
-
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
     # --- Hesaplama butonu ---
@@ -382,34 +382,26 @@ def run_validation_mode(lang_texts):
             st.error("Veri bulunamadı. Lütfen geçerli bir dosya yükleyin veya örnek verileri seçin.")
             st.stop()
 
-        # --- Hesaplama sonuçları (örnek placeholder fonksiyonlar yerine senin mevcut fonksiyonlarını çağır) ---
+        # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-        # ---------------------------------------------------
-        # ✅ Ek sütunlar: Beklenen Değer & Sonuç
-        # ---------------------------------------------------
-        # --- results_list içeriğini kontrol et ---
-try:
-    df_results = pd.DataFrame(results_list)
-    if df_results.shape[1] >= 2:
-        df_results.columns = ["Parametre", "Değer"] + [f"Ek_{i}" for i in range(df_results.shape[1]-2)]
-    else:
-        st.error("Hesaplama sonucu beklenen formatta değil.")
-        st.stop()
-except Exception as e:
-    st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
-    st.stop()
+        # --- DataFrame oluştur ve sütun isimlerini ayarla ---
+        try:
+            df_results = pd.DataFrame(results_list)
+            if df_results.shape[1] >= 2:
+                df_results.columns = ["Parametre", "Değer"] + [f"Ek_{i}" for i in range(df_results.shape[1]-2)]
+            else:
+                st.error("Hesaplama sonucu beklenen formatta değil.")
+                st.stop()
+        except Exception as e:
+            st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
+            st.stop()
 
-# --- Beklenen değer & geçme-kalma sütunları ekle ---
-df_results["Beklenen Değer"] = expected_value
-df_results["Sonuç"] = df_results["Değer"].apply(
-    lambda x: "✅ Geçti" if isinstance(x, (int, float)) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
-)
-
-# --- Sonuç tablosunu göster ---
-st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
-st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
-
+        # --- Beklenen değer & geçme-kalma sütunları ekle ---
+        df_results["Beklenen Değer"] = expected_value
+        df_results["Sonuç"] = df_results["Değer"].apply(
+            lambda x: "✅ Geçti" if isinstance(x, (int, float)) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
+        )
 
         # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
@@ -419,6 +411,7 @@ st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
+        # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
         # --- Referans kontrolü ---
@@ -433,13 +426,12 @@ st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:
             })
             st.write("### Sapma Kontrolü")
             st.dataframe(deviation_df.style.format({"Deviation": "{:.2f}", "Deviation (%)": "{:.2f}"}))
-
             if any(deviation_df["Deviation (%)"] > 5):
                 st.warning("Bazı ölçümler %5’ten fazla sapıyor!")
             else:
                 st.success("Tüm ölçümler referans ile uyumlu.")
 
-        # --- PDF İndirme ---
+        # --- PDF indirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(
             label=lang_texts.get("download_pdf", "📄 PDF İndir"),
@@ -447,6 +439,7 @@ st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
         )
+
 # ------------------------
 # Main
 # ------------------------
