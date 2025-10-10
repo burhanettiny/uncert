@@ -297,6 +297,33 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
+def download_sample_csv():
+    # Örnek veri
+    default_data = {
+        "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
+        "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
+        "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
+    }
+
+    # CSV formatında string
+    sample_data = """1. Gün,2. Gün,3. Gün
+34644.38,34324.02,35447.87
+35909.45,37027.40,35285.81
+33255.74,31319.64,34387.56
+33498.69,34590.12,35724.35
+33632.45,34521.42,36236.50
+"""
+    st.download_button(
+        label="📥 Örnek CSV İndir",
+        data=sample_data,
+        file_name="sample_data.csv",
+        mime="text/csv"
+    )
+
+    # Session_state'e yükle
+    st.session_state["df"] = pd.DataFrame(default_data)
+    st.success("Örnek veriler başarıyla yüklendi ✅")
+    
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
