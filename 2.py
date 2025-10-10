@@ -388,25 +388,6 @@ def run_validation_mode(lang_texts):
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
         )
-        # --- Sonuç tablosunu göster ---
-        st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
-        st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
-
-        # --- ANOVA tablosu ---
-        st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
-        st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
-
-        # --- Günlük ölçüm grafiği ---
-        plot_daily_measurements(valid_groups, [col for col in df.columns], lang_texts)
-
-        # --- PDF İndirme ---
-        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
-        st.download_button(
-            label=lang_texts.get("download_pdf", "📄 PDF İndir"),
-            data=pdf_buffer,
-            file_name="uncertainty_results_validation.pdf",
-            mime="application/pdf"
-        )
 
 # ------------------------
 # Main
