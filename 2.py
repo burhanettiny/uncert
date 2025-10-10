@@ -299,21 +299,6 @@ def run_paste_mode(lang_texts):
 # ------------------------
 # Validation Mod
 # ------------------------
-def download_sample_csv():
-    sample_data = """1. Gün,2. Gün,3. Gün
-34644.38,34324.02,35447.87
-35909.45,37027.40,35285.81
-33255.74,31319.64,34387.56
-33498.69,34590.12,35724.35
-33632.45,34521.42,36236.50
-"""
-    st.download_button(
-        label="📥 Örnek CSV İndir",
-        data=sample_data,
-        file_name="sample_data.csv",
-        mime="text/csv"
-    )
-
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
@@ -381,24 +366,25 @@ def run_validation_mode(lang_texts):
         # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-        # --- DataFrame oluştur ---
-        df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer", "Formül"])
+        # --- Sonuç listesi DataFrame ---
+        try:
+            df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer"])
+        except Exception as e:
+            st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
+            st.stop()
 
-        # --- Beklenen Değer & Sonuç sütunu ekle ---
+        # Değer sütununu float yap
+        df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
+
+        # Beklenen değer ve geçme/kalma sütunu ekle
         df_results["Beklenen Değer"] = expected_value
         df_results["Sonuç"] = df_results["Değer"].apply(
-            lambda x: "✅ Geçti" if isinstance(x, (int, float)) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
+            lambda x: "✅ Geçti" if pd.notna(x) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
         )
 
-        # --- Sonuç tablosunu göster (sadece sayısal sütunları formatla) ---
-        numeric_cols = ["Değer", "Beklenen Değer"]
-        styler = df_results.style
-        for col in numeric_cols:
-            if col in df_results.columns:
-                styler = styler.format({col: "{:.5f}"})
-
+        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
-        st.dataframe(styler)
+        st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
         # --- ANOVA tablosu ---
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
@@ -425,7 +411,7 @@ def run_validation_mode(lang_texts):
             else:
                 st.success("Tüm ölçümler referans ile uyumlu.")
 
-        # --- PDF indirme ---
+        # --- PDF İndirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(
             label=lang_texts.get("download_pdf", "📄 PDF İndir"),
