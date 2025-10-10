@@ -377,8 +377,15 @@ def run_validation_mode(lang_texts):
         # Değer sütununu float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
 
-        # --- Satır bazlı beklenen değer ---
-        df_results["Beklenen Değer"] = df.mean(axis=1)
+        # --- Satır bazlı beklenen değer (her parametre kendi sütun ortalaması) ---
+        expected_values = []
+        for param in df_results["Parametre"]:
+            if param in df.columns:
+                expected_values.append(df[param].mean())
+            else:
+                expected_values.append(df.mean().mean())  # default olarak tüm df ortalaması
+
+        df_results["Beklenen Değer"] = expected_values
 
         # --- Sonuç (Geçti/Kaldı) ---
         df_results["Sonuç"] = df_results.apply(
