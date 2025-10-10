@@ -297,8 +297,6 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
-# Validation Mod
-# ------------------------
 def download_sample_csv():
     sample_data = """1. Gün,2. Gün,3. Gün
 34644.38,34324.02,35447.87
@@ -313,38 +311,45 @@ def download_sample_csv():
         file_name="sample_data.csv",
         mime="text/csv"
     )
-    st.session_state["df"] = pd.DataFrame(default_data)
-    st.success("Örnek veriler başarıyla yüklendi ✅")
 
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
 
-    uploaded_file = st.file_uploader(
-        "CSV veya Excel dosyası yükleyin (ya da aşağıdaki butona basarak örnek verileri kullanın)",
-        type=["csv", "xlsx"]
-    )
-
     if "df" not in st.session_state:
         st.session_state["df"] = None
 
-    # --- Dosya yüklenirse ---
+    # --- Dosya yükleme ---
+    uploaded_file = st.file_uploader(
+        "CSV veya Excel dosyası yükleyin",
+        type=["csv", "xlsx"]
+    )
+
+    # --- Örnek veri yükleme ---
+    if st.button("📊 Örnek Verileri Yükle"):
+        default_data = {
+            "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
+            "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
+            "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
+        }
+        st.session_state["df"] = pd.DataFrame(default_data)
+        st.success("Örnek veriler yüklendi ✅")
+
+    # --- Dosya yüklenirse session_state'e ata ---
     if uploaded_file is not None:
         try:
             if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file)
+                st.session_state["df"] = pd.read_csv(uploaded_file)
             else:
-                df = pd.read_excel(uploaded_file)
-            st.session_state["df"] = df
+                st.session_state["df"] = pd.read_excel(uploaded_file)
             st.success(f"{uploaded_file.name} yüklendi ✅")
         except Exception as e:
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyarı ---
     df = st.session_state["df"]
     if df is None:
-        st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
+        st.warning("Lütfen bir dosya yükleyin veya örnek verileri yükleyin.")
         st.stop()
 
     reference_col = df["Reference"] if "Reference" in df.columns else None
@@ -354,18 +359,17 @@ def run_validation_mode(lang_texts):
 
     # --- Beklenen değer ve tolerans ---
     expected_value = st.number_input(
-        "Beklenen Değer (Referans Ortalama)",
+        "Beklenen Değer",
         min_value=0.0,
         value=float(df.mean().mean()),
         step=0.01,
         format="%.2f"
     )
-    tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
+    tolerance = st.slider("Tolerans (%)", 1, 20, 5)
 
     # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
         measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
-
         if not measurements:
             st.error("Veri bulunamadı. Lütfen geçerli bir dosya yükleyin veya örnek verileri seçin.")
             st.stop()
@@ -373,23 +377,20 @@ def run_validation_mode(lang_texts):
         # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-        # --- Sonuç listesi DataFrame ---
+        # --- Sonuç tablosu ---
         try:
             df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer"])
+            df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
         except Exception as e:
             st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
             st.stop()
 
-        # Değer sütununu float yap
-        df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
-
-        # Beklenen değer ve geçme/kalma sütunu ekle
+        # --- Beklenen değer ve Sonuç sütunları ---
         df_results["Beklenen Değer"] = expected_value
         df_results["Sonuç"] = df_results["Değer"].apply(
             lambda x: "✅ Geçti" if pd.notna(x) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
         )
 
-        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
@@ -419,14 +420,13 @@ def run_validation_mode(lang_texts):
                 st.success("Tüm ölçümler referans ile uyumlu.")
 
         # --- PDF İndirme ---
-        pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
+        pdf_buffer = create_pdf(df_results, anova_df, lang_texts)
         st.download_button(
             label=lang_texts.get("download_pdf", "📄 PDF İndir"),
             data=pdf_buffer,
             file_name="uncertainty_results_validation.pdf",
             mime="application/pdf"
         )
-
 # ------------------------
 # Main
 # ------------------------
