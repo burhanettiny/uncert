@@ -299,6 +299,24 @@ def run_paste_mode(lang_texts):
 # ------------------------
 # Validation Mod
 # ------------------------
+def download_sample_csv():
+    sample_data = """1. Gün,2. Gün,3. Gün
+34644.38,34324.02,35447.87
+35909.45,37027.40,35285.81
+33255.74,31319.64,34387.56
+33498.69,34590.12,35724.35
+33632.45,34521.42,36236.50
+"""
+    st.download_button(
+        label="📥 Örnek CSV İndir",
+        data=sample_data.encode("utf-8"),
+        file_name="sample_data.csv",
+        mime="text/csv"
+    )
+
+# ---------------------------------------------------
+# 🔍 Validation Mode Fonksiyonu
+# ---------------------------------------------------
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
