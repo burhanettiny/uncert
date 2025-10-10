@@ -314,15 +314,24 @@ def download_sample_csv():
 
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
-    download_sample_csv()
+
+    if "df" not in st.session_state:
+        st.session_state["df"] = None
 
     uploaded_file = st.file_uploader(
         "CSV veya Excel dosyası yükleyin (ya da aşağıdaki butona basarak örnek verileri kullanın)",
         type=["csv", "xlsx"]
     )
 
-    if "df" not in st.session_state:
-        st.session_state["df"] = None
+    # --- Örnek veri butonu ---
+    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
+        default_data = {
+            "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
+            "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
+            "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
+        }
+        st.session_state["df"] = pd.DataFrame(default_data)
+        st.success("Örnek veriler başarıyla yüklendi ✅")
 
     # --- Dosya yüklenirse ---
     if uploaded_file is not None:
@@ -337,7 +346,7 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyarı ---
+    # --- Veri yoksa uyar ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
@@ -347,6 +356,19 @@ def run_validation_mode(lang_texts):
 
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
+
+    # --- Kullanıcıdan beklenen değerleri girmesini iste ---
+    st.subheader("Beklenen Değerler (her parametre için)")
+    expected_values = {}
+    for col in df.columns:
+        if col != "Reference":
+            expected_values[col] = st.number_input(
+                f"{col} için beklenen değer",
+                min_value=0.0,
+                value=float(df[col].mean()),  # default olarak sütun ortalaması
+                step=0.01,
+                format="%.2f"
+            )
 
     # --- Tolerans ---
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
@@ -377,15 +399,8 @@ def run_validation_mode(lang_texts):
         # Değer sütununu float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
 
-        # --- Satır bazlı beklenen değer (her parametre kendi sütun ortalaması) ---
-        expected_values = []
-        for param in df_results["Parametre"]:
-            if param in df.columns:
-                expected_values.append(df[param].mean())
-            else:
-                expected_values.append(df.mean().mean())  # default olarak tüm df ortalaması
-
-        df_results["Beklenen Değer"] = expected_values
+        # --- Satır bazlı beklenen değer ---
+        df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda p: expected_values.get(p, float(df.mean().mean())))
 
         # --- Sonuç (Geçti/Kaldı) ---
         df_results["Sonuç"] = df_results.apply(
