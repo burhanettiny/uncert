@@ -299,34 +299,18 @@ def run_paste_mode(lang_texts):
 # ------------------------
 # Validation Mod
 # ------------------------
-def download_sample_csv():
-    sample_data = """1. Gün,2. Gün,3. Gün
-34644.38,34324.02,35447.87
-35909.45,37027.40,35285.81
-33255.74,31319.64,34387.56
-33498.69,34590.12,35724.35
-33632.45,34521.42,36236.50
-"""
-    st.download_button(
-        label="📥 Örnek CSV İndir",
-        data=sample_data.encode("utf-8"),  # UTF-8 eklenmeli, Türkçe karakter güvenliği için
-        file_name="sample_data.csv",
-        mime="text/csv"
-    )
-
-
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
     download_sample_csv()
 
-    # --- Kullanıcıdan dosya yüklemesi ---
     uploaded_file = st.file_uploader(
         "CSV veya Excel dosyası yükleyin (ya da aşağıdaki butona basarak örnek verileri kullanın)",
         type=["csv", "xlsx"]
     )
 
-    # --- Boş başlangıç ---
-    df = None
+    # Eğer session_state'te df yoksa başlat
+    if "df" not in st.session_state:
+        st.session_state["df"] = None
 
     # --- Örnek veri butonu ---
     if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
@@ -335,22 +319,24 @@ def run_validation_mode(lang_texts):
             "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
             "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
         }
-        df = pd.DataFrame(default_data)
+        st.session_state["df"] = pd.DataFrame(default_data)
         st.success("Örnek veriler başarıyla yüklendi ✅")
 
-    # --- Eğer kullanıcı dosya yüklediyse onu kullan ---
+    # --- Dosya yüklenirse ---
     if uploaded_file is not None:
         try:
             if uploaded_file.name.endswith(".csv"):
                 df = pd.read_csv(uploaded_file)
             else:
                 df = pd.read_excel(uploaded_file)
+            st.session_state["df"] = df
             st.success(f"{uploaded_file.name} yüklendi ✅")
         except Exception as e:
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Eğer hâlâ veri yoksa uyarı ver ---
+    # --- Veri yoksa uyarı ver ---
+    df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
         st.stop()
@@ -362,19 +348,21 @@ def run_validation_mode(lang_texts):
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
-    # --- Kullanıcının hesaplama başlatması için buton ---
+    # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
         measurements = [df[col].dropna().tolist() for col in df.columns if col != "Reference"]
 
-        # --- Hesaplama çağrısı ---
-        results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
+        if not measurements:
+            st.error("Veri bulunamadı. Lütfen geçerli bir dosya yükleyin veya örnek verileri seçin.")
+            st.stop()
 
-        # --- Sonuçların gösterimi ---
+        # --- Hesaplama ve gösterim ---
+        results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
         display_results_with_formulas(results_list, title=lang_texts.get("results", "Sonuçlar"), lang_texts=lang_texts)
+
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
-        # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
         # --- Referans kontrolü (isteğe bağlı) ---
