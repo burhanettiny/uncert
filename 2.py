@@ -297,28 +297,8 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
-def download_sample_csv():
-    sample_data = """1. Gün,2. Gün,3. Gün
-34644.38,34324.02,35447.87
-35909.45,37027.40,35285.81
-33255.74,31319.64,34387.56
-33498.69,34590.12,35724.35
-33632.45,34521.42,36236.50
-"""
-    st.download_button(
-        label="📥 Örnek CSV İndir",
-        data=sample_data,
-        file_name="sample_data.csv",
-        mime="text/csv"
-    )
-
-# ------------------------
-# Validation Mod
-# ------------------------
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
-    
-    # CSV indirme butonu
     download_sample_csv()
 
     uploaded_file = st.file_uploader(
@@ -328,16 +308,6 @@ def run_validation_mode(lang_texts):
 
     if "df" not in st.session_state:
         st.session_state["df"] = None
-
-    # --- Örnek veri butonu ---
-    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
-        default_data = {
-            "1. Gün": [34644.38, 35909.45, 33255.74, 33498.69, 33632.45],
-            "2. Gün": [34324.02, 37027.40, 31319.64, 34590.12, 34521.42],
-            "3. Gün": [35447.87, 35285.81, 34387.56, 35724.35, 36236.50]
-        }
-        st.session_state["df"] = pd.DataFrame(default_data)
-        st.success("Örnek veriler başarıyla yüklendi ✅")
 
     # --- Dosya yüklenirse ---
     if uploaded_file is not None:
@@ -352,7 +322,6 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-    # --- Veri yoksa uyarı ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
@@ -363,14 +332,18 @@ def run_validation_mode(lang_texts):
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
-    # --- Beklenen değer ve tolerans ---
-    expected_value = st.number_input(
-        "Beklenen Değer (Referans Ortalama)",
-        min_value=0.0,
-        value=float(df.mean().mean()),
-        step=0.01,
-        format="%.2f"
-    )
+    # --- Her sütun için beklenen değer al ---
+    expected_values = {}
+    for col in df.columns:
+        if col != "Reference":
+            expected_values[col] = st.number_input(
+                f"{col} için Beklenen Değer",
+                min_value=0.0,
+                value=float(df[col].mean()),
+                step=0.01,
+                format="%.2f"
+            )
+
     tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
     # --- Hesaplama butonu ---
@@ -384,26 +357,21 @@ def run_validation_mode(lang_texts):
         # --- Hesaplama ---
         results_list, valid_groups, anova_df = calculate_results(measurements, [], lang_texts)
 
-        # --- Sonuç listesi DataFrame ---
+        # --- Sonuç DataFrame ---
         try:
-            df_results = pd.DataFrame(results_list)
-            if df_results.shape[1] >= 2:
-                df_results = df_results.iloc[:, :2]  # sadece ilk 2 sütunu al
-                df_results.columns = ["Parametre", "Değer"]
-            else:
-                st.error("Hesaplama sonucu beklenen formatta değil.")
-                st.stop()
+            df_results = pd.DataFrame(results_list, columns=["Parametre", "Değer"])
         except Exception as e:
             st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
             st.stop()
 
-        # Değer sütununu float yap
+        # Değerleri float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
 
-        # Beklenen değer ve geçme/kalma sütunu ekle
-        df_results["Beklenen Değer"] = expected_value
-        df_results["Sonuç"] = df_results["Değer"].apply(
-            lambda x: "✅ Geçti" if pd.notna(x) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
+        # --- Beklenen değer ve geçme/kalma ---
+        df_results["Beklenen Değer"] = df_results["Parametre"].apply(lambda x: expected_values.get(x, np.nan))
+        df_results["Sonuç"] = df_results.apply(
+            lambda row: "✅ Geçti" if pd.notna(row["Değer"]) and abs((row["Değer"] - row["Beklenen Değer"]) / row["Beklenen Değer"] * 100) <= tolerance else "❌ Kaldı",
+            axis=1
         )
 
         # --- Sonuç tablosunu göster ---
