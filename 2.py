@@ -297,8 +297,28 @@ def run_paste_mode(lang_texts):
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
 
 # ------------------------
+def download_sample_csv():
+    sample_data = """1. Gün,2. Gün,3. Gün
+34644.38,34324.02,35447.87
+35909.45,37027.40,35285.81
+33255.74,31319.64,34387.56
+33498.69,34590.12,35724.35
+33632.45,34521.42,36236.50
+"""
+    st.download_button(
+        label="📥 Örnek CSV İndir",
+        data=sample_data,
+        file_name="sample_data.csv",
+        mime="text/csv"
+    )
+
+# ------------------------
+# Validation Mod
+# ------------------------
 def run_validation_mode(lang_texts):
     st.header("Validation / Doğrulama Modu")
+    
+    # CSV indirme butonu
     download_sample_csv()
 
     uploaded_file = st.file_uploader(
@@ -319,10 +339,6 @@ def run_validation_mode(lang_texts):
         st.session_state["df"] = pd.DataFrame(default_data)
         st.success("Örnek veriler başarıyla yüklendi ✅")
 
-        # --- Otomatik beklenen değer ve tolerans ayarla ---
-        st.session_state["expected_value"] = float(pd.DataFrame(default_data).mean().mean())
-        st.session_state["tolerance"] = 5  # Varsayılan tolerans
-
     # --- Dosya yüklenirse ---
     if uploaded_file is not None:
         try:
@@ -336,11 +352,7 @@ def run_validation_mode(lang_texts):
             st.error(f"Dosya okunamadı: {e}")
             st.stop()
 
-        # --- Otomatik beklenen değer ve tolerans ---
-        st.session_state["expected_value"] = float(df.mean().mean())
-        st.session_state["tolerance"] = 5  # Varsayılan tolerans
-
-    # --- Veri yoksa uyar ---
+    # --- Veri yoksa uyarı ---
     df = st.session_state["df"]
     if df is None:
         st.warning("Lütfen bir dosya yükleyin veya 'Örnek Verileri Yükle' butonuna basın.")
@@ -351,20 +363,15 @@ def run_validation_mode(lang_texts):
     st.subheader(lang_texts.get("input_data_table", "Girdi Verileri"))
     st.dataframe(df.style.format("{:.2f}"))
 
-    # --- Beklenen değer ve tolerans inputları ---
+    # --- Beklenen değer ve tolerans ---
     expected_value = st.number_input(
         "Beklenen Değer (Referans Ortalama)",
         min_value=0.0,
-        value=st.session_state.get("expected_value", float(df.mean().mean())),
+        value=float(df.mean().mean()),
         step=0.01,
         format="%.2f"
     )
-    tolerance = st.slider(
-        "Tolerans (%)",
-        1, 20,
-        value=st.session_state.get("tolerance", 5),
-        step=1
-    )
+    tolerance = st.slider("Tolerans (%)", 1, 20, 5, step=1)
 
     # --- Hesaplama butonu ---
     if st.button(lang_texts.get("calculate_button", "Sonuçları Hesapla")):
@@ -380,31 +387,37 @@ def run_validation_mode(lang_texts):
         # --- Sonuç listesi DataFrame ---
         try:
             df_results = pd.DataFrame(results_list)
-            if df_results.shape[1] == 2:
+            if df_results.shape[1] >= 2:
+                df_results = df_results.iloc[:, :2]  # sadece ilk 2 sütunu al
                 df_results.columns = ["Parametre", "Değer"]
-            elif df_results.shape[1] == 3:
-                df_results.columns = ["Parametre", "Değer", "Ek"]
             else:
-                st.error(f"Hesaplama sonucu beklenmeyen formatta: {df_results.shape[1]} sütun")
+                st.error("Hesaplama sonucu beklenen formatta değil.")
                 st.stop()
         except Exception as e:
             st.error(f"Sonuç listesi tabloya dönüştürülemedi: {e}")
             st.stop()
 
+        # Değer sütununu float yap
         df_results["Değer"] = pd.to_numeric(df_results["Değer"], errors="coerce")
+
+        # Beklenen değer ve geçme/kalma sütunu ekle
         df_results["Beklenen Değer"] = expected_value
         df_results["Sonuç"] = df_results["Değer"].apply(
             lambda x: "✅ Geçti" if pd.notna(x) and abs((x - expected_value) / expected_value * 100) <= tolerance else "❌ Kaldı"
         )
 
+        # --- Sonuç tablosunu göster ---
         st.subheader("Sonuçlar (Beklenen Değer Karşılaştırmalı)")
         st.dataframe(df_results.style.format({"Değer": "{:.5f}", "Beklenen Değer": "{:.5f}"}))
 
+        # --- ANOVA tablosu ---
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Tablosu"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
 
+        # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, [col for col in df.columns if col != "Reference"], lang_texts)
 
+        # --- Referans kontrolü ---
         if reference_col is not None:
             grand_mean = float(results_list[6][1])
             deviations = np.abs(grand_mean - reference_col)
@@ -422,6 +435,7 @@ def run_validation_mode(lang_texts):
             else:
                 st.success("Tüm ölçümler referans ile uyumlu.")
 
+        # --- PDF İndirme ---
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts)
         st.download_button(
             label=lang_texts.get("download_pdf", "📄 PDF İndir"),
