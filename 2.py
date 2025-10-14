@@ -14,8 +14,8 @@ languages = {
     "Türkçe": {
         "manual_header": "Elle Veri Girişi Modu",
         "manual_subheader": "{} İçin Ölçüm Sonucu Girin",
-        "extra_uncert_label": "Ekstra Belirsizlik Bütçesi",
-        "extra_uncert_count": "Ekstra Belirsizlik Bütçesi Sayısı",
+        "extra_uncert_label": "Ek Belirsizlik Kaynağı",
+        "extra_uncert_count": "Ek Belirsizlik Kaynağı Sayısı",
         "extra_uncert_type": "{} için tür seçin",
         "absolute": "Mutlak Değer",
         "percent": "Yüzde",
@@ -32,7 +32,7 @@ languages = {
         "paste_area": "Verileri günlük sütunlar halinde buraya yapıştırın (boş hücreler dışlanır)",
         "results": "Sonuçlar",
         "daily_measurements": "Günlük Ölçüm Sonuçları",
-        "add_uncertainty": "Ekstra Belirsizlik Bütçesi Ekle",
+        "add_uncertainty": "Ek Belirsizlik Kaynağı Ekle",
         "download_pdf": "PDF İndir",
         "input_data_table": "Girilen Veriler Tablosu",
         "anova_table_label": "ANOVA Tablosu"
@@ -40,8 +40,8 @@ languages = {
     "English": {
         "manual_header": "Manual Input Mode",
         "manual_subheader": "Enter Measurements for {}",
-        "extra_uncert_label": "Extra Uncertainty Budget",
-        "extra_uncert_count": "Number of Extra Uncertainty Budgets",
+        "extra_uncert_label": "Extra Uncertainty sources",
+        "extra_uncert_count": "Number of Extra sources",
         "extra_uncert_type": "Select type for {}",
         "absolute": "Absolute Value",
         "percent": "Percent",
@@ -58,7 +58,7 @@ languages = {
         "paste_area": "Paste data here (columns = days)",
         "results": "Results",
         "daily_measurements": "Daily Measurement Results",
-        "add_uncertainty": "Add Extra Uncertainty Budget",
+        "add_uncertainty": "Add Extra Uncertainty Sources",
         "download_pdf": "Download PDF",
         "input_data_table": "Input Data Table",
         "anova_table_label": "ANOVA Table"
@@ -104,7 +104,7 @@ def calculate_results(measurements, extras, lang_texts):
         ("Intermediate Precision", f"{inter_precision:.4f}", r"s_{IP} = \sqrt{\frac{MS_{between} - MS_{within}}{n}}"),
         ("Relative Repeatability", f"{rel_r:.4f}", r"u_{r,rel} = \frac{s_r}{\bar{x}}"),
         ("Relative Intermediate Precision", f"{rel_ip:.4f}", r"u_{IP,rel} = \frac{s_{IP}}{\bar{x}}"),
-        ("Relative Extra Uncertainty", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
+        ("Relative Extra Uncertainty sources", f"{rel_extra:.4f}", r"u_{extra,rel} = \sqrt{\sum u_{extra,i}^2}"),
         ("Combined Relative Uncertainty", f"{u_c:.4f}", r"u_c = \sqrt{u_{r,rel}^2 + u_{IP,rel}^2 + u_{extra,rel}^2}"),
         (lang_texts["average_value"], f"{grand_mean:.4f}", r"\bar{x} = \frac{\sum x_i}{n}"),
         (lang_texts["expanded_uncertainty"], f"{U:.4f}", r"U = 2 \cdot u_c \cdot \bar{x}"),
