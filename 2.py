@@ -74,7 +74,7 @@ languages = {
         "bottomup_header": "Bottom-Up Mode",
         "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",
         "bottomup_add": "Number of Components",
-        "bottomup_calc": "Calculate"\
+        "bottomup_calc": "Calculate",
         "anova_table_label": "ANOVA Table"
     }
 }
