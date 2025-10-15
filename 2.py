@@ -443,39 +443,46 @@ def run_validation_mode(lang_texts):
 # Bottom-Up Modu
 # ------------------------
 def run_bottom_up_mode(lang_texts):
-    st.header(lang_texts["bottomup_header"])
-    st.write(lang_texts["bottomup_desc"])
+    st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
+    st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    avg_value = st.number_input("Ortalama Ölçüm Değeri / Mean Value", min_value=0.0, value=1.0, step=0.001, format="%.4f")
-    num_comp = st.number_input(lang_texts["bottomup_add"], min_value=1, max_value=15, value=3, step=1)
+    # Kaç bileşen girişi yapılacak
+    num_comp = st.number_input(lang_texts.get("bottomup_add", "Bileşen Sayısı"), min_value=1, max_value=15, value=3, step=1)
 
     components = []
-    for i in range(num_comp):
-        label = st.text_input(f"Bileşen {i+1} Adı / Component {i+1} Name", value=f"u{i+1}")
-        u_type = st.radio(f"{label} türü / type", ["Mutlak", "Yüzde (%)"], horizontal=True, key=f"type_{i}")
-        if u_type.startswith("Mutlak"):
-            u_val = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.001, format="%.4f", key=f"val_abs_{i}")
-            rel_val = u_val / avg_value if avg_value != 0 else 0.0
-        else:
-            perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, format="%.3f", key=f"val_perc_{i}")
-            rel_val = perc / 100.0
-        components.append((label, rel_val))
-
-    if st.button(lang_texts["bottomup_calc"]):
-        u_c = np.sqrt(sum([u[1]**2 for u in components]))
-        U = 2 * u_c * avg_value
-        U_rel = u_c * 2 * 100
-
-        st.success("✅ Hesaplama tamamlandı.")
-        st.markdown(f"**{lang_texts['bottomup_uc']}:** {u_c:.6f}")
-        st.markdown(f"**{lang_texts['bottomup_U']}:** {U:.6f}")
-        st.markdown(f"**Göreceli Genişletilmiş Belirsizlik (%):** {U_rel:.3f}")
-
-        results_df = pd.DataFrame({
-            "Bileşen": [c[0] for c in components],
-            "Göreceli Belirsizlik (uᵢ)": [f"{c[1]:.6f}" for c in components]
+    st.subheader("Bileşen Girdileri")
+    for i in range(int(num_comp)):
+        st.markdown(f"**Bileşen {i+1}**")
+        name = st.text_input(f"Bileşen {i+1} Adı", key=f"bu_name_{i}")
+        value = st.number_input(f"{name} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
+        u_type = st.radio(f"{name} Belirsizlik Tipi", [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")], key=f"bu_type_{i}")
+        u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
+        components.append({
+            "name": name,
+            "value": value,
+            "u_type": u_type,
+            "u_val": u_val
         })
-        st.dataframe(results_df)
+
+    if st.button(lang_texts.get("bottomup_calc", "Hesapla")):
+        # Hesaplama
+        u_squares = []
+        for comp in components:
+            if comp["u_type"] == lang_texts.get("absolute", "Mutlak"):
+                u_rel = comp["u_val"] / comp["value"] if comp["value"] != 0 else 0
+            else:  # yüzde
+                u_rel = comp["u_val"] / 100
+            u_squares.append(u_rel**2)
+
+        u_c_rel = (sum(u_squares))**0.5
+        u_c = u_c_rel * sum(comp["value"] for comp in components) / len(components)  # Ortalama değerle çarp
+        U = 2 * u_c  # k=2
+
+        # Sonuç gösterimi
+        st.subheader("Sonuçlar")
+        st.markdown(f"**{lang_texts.get('bottomup_uc','Birleşik Göreceli Belirsizlik (u_c)')}:** {u_c:.6f}")
+        st.markdown(f"**{lang_texts.get('bottomup_U','Genişletilmiş Belirsizlik (U)')}:** {U:.6f}")
+
 
 # ------------------------
 # Main
