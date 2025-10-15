@@ -38,6 +38,7 @@ languages = {
         "method_choice": "Metot Seçimi",
         "top_down": "Top-Down (İstatistiksel)",
         "bottom_up": "Bottom-Up (Bileşen Tabanlı)",
+        "bottomup_header": "Bottom-Up Modu", 
         "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
@@ -67,6 +68,7 @@ languages = {
         "method_choice": "Select Method",
         "top_down": "Top-Down (Statistical)",
         "bottom_up": "Bottom-Up (Component-Based)",
+        "bottomup_header": "Bottom-Up Mode",
         "anova_table_label": "ANOVA Table"
     }
 }
