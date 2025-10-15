@@ -40,7 +40,7 @@ languages = {
         "bottom_up": "Bottom-Up (Bileşen Tabanlı)",
         "bottomup_header": "Bottom-Up Modu", 
         "bottomup_desc": "Bottom-Up yöntemi ile belirsizlik hesaplaması yapabilirsiniz.",
-        "bottomup_add": "Eklenen Bileşen Sayısı"
+        "bottomup_add": "Eklenen Bileşen Sayısı",
         "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
