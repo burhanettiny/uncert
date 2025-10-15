@@ -42,6 +42,7 @@ languages = {
         "bottomup_desc": "Bottom-Up yöntemi ile belirsizlik hesaplaması yapabilirsiniz.",
         "bottomup_add": "Eklenen Bileşen Sayısı",
         "bottomup_calc": "Hesapla",
+        "bottomup_uc": "Birleşik Göreceli Belirsizlik",
         "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
@@ -75,6 +76,7 @@ languages = {
         "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",
         "bottomup_add": "Number of Components",
         "bottomup_calc": "Calculate",
+        "bottomup_uc": "Combined Relative Uncertainty",
         "anova_table_label": "ANOVA Table"
     }
 }
