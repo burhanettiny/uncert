@@ -35,6 +35,9 @@ languages = {
         "add_uncertainty": "Ek Belirsizlik Kaynağı Ekle",
         "download_pdf": "PDF İndir",
         "input_data_table": "Girilen Veriler Tablosu",
+        "method_choice": "Metot Seçimi",
+        "top_down": "Top-Down (İstatistiksel)",
+        "bottom_up": "Bottom-Up (Bileşen Tabanlı)",
         "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
@@ -61,6 +64,9 @@ languages = {
         "add_uncertainty": "Add Extra Uncertainty Sources",
         "download_pdf": "Download PDF",
         "input_data_table": "Input Data Table",
+        "method_choice": "Select Method",
+        "top_down": "Top-Down (Statistical)",
+        "bottom_up": "Bottom-Up (Component-Based)",
         "anova_table_label": "ANOVA Table"
     }
 }
