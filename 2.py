@@ -450,29 +450,37 @@ def run_bottom_up_mode(lang_texts):
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    # --- Örnek veri butonu ---
-    if st.button("📊 Örnek Verileri Yükle"):
-        default_data = [
-            {"name": "Termometre", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
-            {"name": "Basınç Sensörü", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
-            {"name": "Hassas Tartı", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
-        ]
-    else:
-        default_data = []
+    # --- Session State ile örnek veri kontrolü ---
+    if "use_default_data" not in st.session_state:
+        st.session_state.use_default_data = False
+
+    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
+        st.session_state.use_default_data = True
+
+    if st.button("🧹 Sıfırla / Reset"):
+        st.session_state.use_default_data = False
+
+    # --- Örnek veri seti ---
+    default_data = [
+        {"name": "Termometre", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
+        {"name": "Basınç Sensörü", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
+        {"name": "Hassas Tartı", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
+    ]
 
     # --- Bileşen sayısı ---
     num_comp = st.number_input(
         lang_texts.get("bottomup_add", "Bileşen Sayısı"),
         min_value=1, max_value=15,
-        value=len(default_data) if default_data else 3,
+        value=3,
         step=1
     )
 
     components = []
-
     st.subheader("Bileşen Girdileri")
+
+    # --- Girdi döngüsü ---
     for i in range(int(num_comp)):
-        if i < len(default_data):
+        if st.session_state.use_default_data and i < len(default_data):
             d = default_data[i]
             name_default, value_default, type_default, unc_default = d["name"], d["value"], d["u_type"], d["u_val"]
         else:
