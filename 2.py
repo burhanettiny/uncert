@@ -72,7 +72,7 @@ languages = {
         "bottom_up": "Bottom-Up (Component-Based)",
         "bottomup_header": "Bottom-Up Mode",
         "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",
-        "bottomup_add": "Number of Components"  # <-- EKLE
+        "bottomup_add": "Number of Components",
         "anova_table_label": "ANOVA Table"
     }
 }
