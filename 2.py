@@ -462,9 +462,9 @@ def run_bottom_up_mode(lang_texts):
 
     # --- Örnek veri seti ---
     default_data = [
-        {"name": "Termometre", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
-        {"name": "Basınç Sensörü", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
-        {"name": "Hassas Tartı", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
+        {"name": "Terazi", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
+        {"name": "Pipet", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
+        {"name": "Cihaz", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
     ]
 
     # --- Bileşen sayısı ---
