@@ -439,149 +439,124 @@ def run_validation_mode(lang_texts):
 
         # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
-
 # ------------------------
-# Bottom-Up Mod
-# ------------------------
-import numpy as np
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# ------------------------
-# Dil Metinleri
-# ------------------------
-languages = {
-    "Türkçe": {
-        "bottomup_header": "Bottom-Up Modu",
-        "bottomup_desc": "Ölçüm bileşenleri ve belirsizliklerini giriniz.",
-        "bottomup_add": "Bileşen Sayısı",
-        "bottomup_calc": "Hesapla",
-        "bottomup_uc": "Birleşik Göreceli Belirsizlik (u_c)",
-        "bottomup_U": "Genişletilmiş Belirsizlik (U)",
-        "absolute": "Mutlak",
-        "percent": "Yüzde"
-    },
-    "English": {
-        "bottomup_header": "Bottom-Up Mode",
-        "bottomup_desc": "Enter measurement components and their uncertainties.",
-        "bottomup_add": "Number of Components",
-        "bottomup_calc": "Calculate",
-        "bottomup_uc": "Combined Relative Uncertainty (u_c)",
-        "bottomup_U": "Expanded Uncertainty (U)",
-        "absolute": "Absolute",
-        "percent": "Percent"
-    }
-}
-
-# ------------------------
-# Bottom-Up Mod
+# Bottom-Up Modu
 # ------------------------
 def run_bottom_up_mode(lang_texts):
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    num_comp = st.number_input(lang_texts.get("bottomup_add", "Bileşen Sayısı"), min_value=1, max_value=15, value=3, step=1)
+    # --- Session State ile örnek veri kontrolü ---
+    if "use_default_data" not in st.session_state:
+        st.session_state.use_default_data = False
 
-    # ------------------------
-    # Editable tablo
-    # ------------------------
-    st.subheader("Bileşen Verilerini Girin veya Düzenleyin")
-    if "bu_df" not in st.session_state or st.session_state["bu_df"].shape[0] != num_comp:
-        df_init = pd.DataFrame({
-            "Bileşen (i)": [f"Bileşen {i+1}" for i in range(num_comp)],
-            "Nominal Değer (xᵢ)": [0.0]*num_comp,
-            "Belirsizlik Türü": [lang_texts.get("absolute", "Mutlak")]*num_comp,
-            "Standart Belirsizlik (uᵢ)": [0.0]*num_comp
-        })
-        st.session_state["bu_df"] = df_init
+    if st.button("📊 Örnek Verileri Yükle / Use Default Data"):
+        st.session_state.use_default_data = True
 
-    edited_df = st.experimental_data_editor(st.session_state["bu_df"], num_rows="dynamic")
-    st.session_state["bu_df"] = edited_df
+    if st.button("🧹 Sıfırla / Reset"):
+        st.session_state.use_default_data = False
 
-    # ------------------------
-    # k değeri manuel girilsin
-    # ------------------------
-    k = st.number_input("Genişletilmiş Belirsizlik Katsayısı k", min_value=1.0, max_value=5.0, value=2.0, step=0.1,
-                        help="Örn. k=2 için güven düzeyi yaklaşık %95")
+    # --- Örnek veri seti ---
+    default_data = [
+        {"name": "Terazi", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
+        {"name": "Pipet", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
+        {"name": "Cihaz", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
+    ]
 
-    # ------------------------
-    # Hesapla butonu
-    # ------------------------
-    if st.button(lang_texts.get("bottomup_calc", "Hesapla")):
+    # --- Bileşen sayısı ---
+    num_comp = st.number_input(
+        lang_texts.get("bottomup_add", "Bileşen Sayısı"),
+        min_value=1, max_value=15,
+        value=3,
+        step=1
+    )
+
+    components = []
+    st.subheader("Bileşen Girdileri")
+
+    # --- Girdi döngüsü ---
+    for i in range(int(num_comp)):
+        if st.session_state.use_default_data and i < len(default_data):
+            d = default_data[i]
+            name_default, value_default, type_default, unc_default = d["name"], d["value"], d["u_type"], d["u_val"]
+        else:
+            name_default, value_default, type_default, unc_default = f"Bileşen {i+1}", 0.0, lang_texts.get("absolute", "Mutlak"), 0.0
+
+        st.markdown(f"**Bileşen {i+1}**")
+        name = st.text_input(f"Bileşen {i+1} Adı", value=name_default, key=f"bu_name_{i}")
+        value = st.number_input(f"{name} Değeri", min_value=0.0, value=value_default, step=0.01, key=f"bu_val_{i}")
+        u_type = st.radio(
+            f"{name} Belirsizlik Tipi",
+            [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")],
+            index=0 if type_default == lang_texts.get("absolute", "Mutlak") else 1,
+            key=f"bu_type_{i}"
+        )
+        u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=unc_default, step=0.01, key=f"bu_unc_{i}")
+        components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
+
+    # --- k değeri manuel ---
+    st.subheader("Genişletilmiş Belirsizlik Katsayısı (k)")
+    k = st.number_input("k değerini giriniz", min_value=1.0, max_value=10.0, value=2.0, step=0.01, key="k_manual")
+
+    # --- Hesaplama ---
+    if len(components) > 0:
         u_squares = []
-        for idx, row in st.session_state["bu_df"].iterrows():
-            if row["Belirsizlik Türü"] == lang_texts.get("absolute", "Mutlak"):
-                u_rel = row["Standart Belirsizlik (uᵢ)"] / row["Nominal Değer (xᵢ)"] if row["Nominal Değer (xᵢ)"] != 0 else 0
+        for comp in components:
+            if comp["u_type"] == lang_texts.get("absolute", "Mutlak"):
+                u_rel = comp["u_val"] / comp["value"] if comp["value"] != 0 else 0
             else:
-                u_rel = row["Standart Belirsizlik (uᵢ)"] / 100
+                u_rel = comp["u_val"] / 100
             u_squares.append(u_rel**2)
-            st.session_state["bu_df"].at[idx, "Göreceli Belirsizlik"] = u_rel
+            comp["u_rel"] = u_rel
 
         u_c_rel = (sum(u_squares))**0.5
-        avg_value = st.session_state["bu_df"]["Nominal Değer (xᵢ)"].mean()
+        avg_value = sum(comp["value"] for comp in components) / len(components) if components else 0
         u_c = u_c_rel * avg_value
-        U = k * u_c  # genişletilmiş belirsizlik
+        U = k * u_c  # k kullanıcıdan alınır
 
-        # ------------------------
-        # Birleşik ve Genişletilmiş Belirsizlik
-        # ------------------------
+        # --- Görsel tablo ---
+        st.subheader("Bileşenler ve Göreceli Belirsizlikleri")
+        comp_df = pd.DataFrame(components)
+        comp_df_display = comp_df[["name", "value", "u_type", "u_val", "u_rel"]].rename(columns={
+            "name": "Bileşen",
+            "value": "Değer",
+            "u_type": "Belirsizlik Türü",
+            "u_val": "Belirsizlik",
+            "u_rel": "Göreceli Belirsizlik"
+        })
+        st.dataframe(
+            comp_df_display.style.format({
+                "Değer": "{:.4f}",
+                "Belirsizlik": "{:.4f}",
+                "Göreceli Belirsizlik": "{:.4f}"
+            })
+        )
+
+        # --- Sonuçlar ---
         st.subheader("Birleşik ve Genişletilmiş Belirsizlik")
         col1, col2 = st.columns(2)
-        col1.metric(lang_texts.get("bottomup_uc", "Birleşik Göreceli Belirsizlik (u_c)"), f"{u_c:.6f}")
-        col2.metric(lang_texts.get("bottomup_U", "Genişletilmiş Belirsizlik (U)"), f"{U:.6f}")
+        col1.metric("Birleşik Göreceli Belirsizlik (u_c)", f"{u_c:.6f}")
+        col2.metric(f"Genişletilmiş Belirsizlik (U) [k={k}]", f"{U:.6f}")
 
-        # Formüller
+        # --- Formüller ---
         st.markdown("### Formüller")
         st.latex(r"u_c = \sqrt{\sum_{i=1}^{n} u_{i,rel}^2} \cdot \bar{x}")
-        st.latex(r"U = k \cdot u_c")
+        st.latex(fr"U = k \cdot u_c \quad (k = {k})")
 
-        # ------------------------
-        # Grafik: Bileşenlerin göreceli belirsizlik katkısı
-        # ------------------------
+        # --- Grafik ---
         st.subheader("Bileşenlerin Göreceli Belirsizlik Katkısı")
         fig, ax = plt.subplots()
-        names = st.session_state["bu_df"]["Bileşen (i)"]
-        rel_vals = st.session_state["bu_df"]["Göreceli Belirsizlik"]
-        ax.barh(names, rel_vals, color='skyblue')
+        names = [c["name"] for c in components]
+        rel_vals = [c["u_rel"] for c in components]
+        ax.barh(names, rel_vals, color='mediumturquoise')
         ax.set_xlabel("Göreceli Belirsizlik")
-        ax.set_ylabel("Bileşen (i)")
+        ax.set_ylabel("Bileşen")
         ax.set_title("Bileşen Katkıları")
         st.pyplot(fig)
-
-        # ------------------------
-        # Tabloyu göster
-        # ------------------------
-        st.subheader("Bileşen Tablosu (Güncellenmiş)")
-        st.dataframe(st.session_state["bu_df"].style.format({
-            "Nominal Değer (xᵢ)": "{:.4f}",
-            "Standart Belirsizlik (uᵢ)": "{:.4f}",
-            "Göreceli Belirsizlik": "{:.4f}"
-        }))
-
-# ------------------------
-# Main
-# ------------------------
-def main():
-    st.sidebar.title("Ayarlar / Settings")
-    lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
-    lang_texts = languages[lang_choice]
-    run_bottom_up_mode(lang_texts)
-
-if __name__ == "__main__":
-    main()
-
-# ------------------------
-# Main
-# ------------------------
-def main():
-    st.sidebar.title("Ayarlar / Settings")
-    lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
-    lang_texts = languages[lang_choice]
-    run_bottom_up_mode(lang_texts)
-
-if __name__ == "__main__":
-    main()
 
 # ------------------------
 # Main
