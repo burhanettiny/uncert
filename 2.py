@@ -442,8 +442,6 @@ def run_validation_mode(lang_texts):
 # ------------------------
 # Bottom-Up Modu
 # ------------------------
-import matplotlib.pyplot as plt
-
 def run_bottom_up_mode(lang_texts):
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
@@ -472,7 +470,8 @@ def run_bottom_up_mode(lang_texts):
             comp["u_rel"] = u_rel  # her bileşen için kaydet
 
         u_c_rel = (sum(u_squares))**0.5
-        u_c = u_c_rel * sum(comp["value"] for comp in components) / len(components)
+        avg_value = sum(comp["value"] for comp in components) / len(components)
+        u_c = u_c_rel * avg_value
         U = 2 * u_c  # k=2
 
         # ------------------------
@@ -490,12 +489,17 @@ def run_bottom_up_mode(lang_texts):
         st.dataframe(comp_df_display.style.format({"Değer": "{:.4f}", "Belirsizlik": "{:.4f}", "Göreceli Belirsizlik": "{:.4f}"}))
 
         # ------------------------
-        # Birleşik belirsizlik ve genişletilmiş belirsizlik
+        # Birleşik ve Genişletilmiş Belirsizlik
         # ------------------------
         st.subheader("Birleşik ve Genişletilmiş Belirsizlik")
         col1, col2 = st.columns(2)
         col1.metric(lang_texts.get("bottomup_uc", "Birleşik Göreceli Belirsizlik (u_c)"), f"{u_c:.6f}")
         col2.metric(lang_texts.get("bottomup_U", "Genişletilmiş Belirsizlik (U)"), f"{U:.6f}")
+
+        # Formüller
+        st.markdown("### Formüller")
+        st.latex(r"u_c = \sqrt{\sum_{i=1}^{n} u_{i,rel}^2} \cdot \bar{x}")
+        st.latex(r"U = 2 \cdot u_c")
 
         # ------------------------
         # Grafik: Bileşenlerin göreceli belirsizlik katkısı
