@@ -450,28 +450,47 @@ def run_bottom_up_mode(lang_texts):
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    # Bileşen sayısı
+    # --- Örnek veri butonu ---
+    if st.button("📊 Örnek Verileri Yükle"):
+        default_data = [
+            {"name": "Termometre", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.5},
+            {"name": "Basınç Sensörü", "value": 100.0, "u_type": lang_texts.get("percent", "Yüzde"), "u_val": 1.0},
+            {"name": "Hassas Tartı", "value": 100.0, "u_type": lang_texts.get("absolute", "Mutlak"), "u_val": 0.2},
+        ]
+    else:
+        default_data = []
+
+    # --- Bileşen sayısı ---
     num_comp = st.number_input(
         lang_texts.get("bottomup_add", "Bileşen Sayısı"),
-        min_value=1, max_value=15, value=3, step=1
+        min_value=1, max_value=15,
+        value=len(default_data) if default_data else 3,
+        step=1
     )
 
     components = []
 
     st.subheader("Bileşen Girdileri")
     for i in range(int(num_comp)):
+        if i < len(default_data):
+            d = default_data[i]
+            name_default, value_default, type_default, unc_default = d["name"], d["value"], d["u_type"], d["u_val"]
+        else:
+            name_default, value_default, type_default, unc_default = f"Bileşen {i+1}", 0.0, lang_texts.get("absolute", "Mutlak"), 0.0
+
         st.markdown(f"**Bileşen {i+1}**")
-        name = st.text_input(f"Bileşen {i+1} Adı", key=f"bu_name_{i}")
-        value = st.number_input(f"{name} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
+        name = st.text_input(f"Bileşen {i+1} Adı", value=name_default, key=f"bu_name_{i}")
+        value = st.number_input(f"{name} Değeri", min_value=0.0, value=value_default, step=0.01, key=f"bu_val_{i}")
         u_type = st.radio(
             f"{name} Belirsizlik Tipi",
             [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")],
+            index=0 if type_default == lang_texts.get("absolute", "Mutlak") else 1,
             key=f"bu_type_{i}"
         )
-        u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
+        u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=unc_default, step=0.01, key=f"bu_unc_{i}")
         components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
 
-    # --- k değeri: manuel giriş ---
+    # --- k değeri manuel ---
     st.subheader("Genişletilmiş Belirsizlik Katsayısı (k)")
     k = st.number_input("k değerini giriniz", min_value=1.0, max_value=10.0, value=2.0, step=0.01, key="k_manual")
 
@@ -489,7 +508,7 @@ def run_bottom_up_mode(lang_texts):
         u_c_rel = (sum(u_squares))**0.5
         avg_value = sum(comp["value"] for comp in components) / len(components) if components else 0
         u_c = u_c_rel * avg_value
-        U = k * u_c  # dinamik k değeri
+        U = k * u_c  # k kullanıcıdan alınır
 
         # --- Görsel tablo ---
         st.subheader("Bileşenler ve Göreceli Belirsizlikleri")
@@ -525,12 +544,11 @@ def run_bottom_up_mode(lang_texts):
         fig, ax = plt.subplots()
         names = [c["name"] for c in components]
         rel_vals = [c["u_rel"] for c in components]
-        ax.barh(names, rel_vals, color='skyblue')
+        ax.barh(names, rel_vals, color='mediumturquoise')
         ax.set_xlabel("Göreceli Belirsizlik")
         ax.set_ylabel("Bileşen")
         ax.set_title("Bileşen Katkıları")
         st.pyplot(fig)
-
 
 # ------------------------
 # Main
