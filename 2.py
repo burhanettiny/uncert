@@ -443,9 +443,14 @@ def run_validation_mode(lang_texts):
 # Bottom-Up Modu
 # ------------------------
 def run_bottom_up_mode(lang_texts):
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
+    # Bileşen sayısı
     num_comp = st.number_input(
         lang_texts.get("bottomup_add", "Bileşen Sayısı"),
         min_value=1, max_value=15, value=3, step=1
@@ -458,17 +463,19 @@ def run_bottom_up_mode(lang_texts):
         st.markdown(f"**Bileşen {i+1}**")
         name = st.text_input(f"Bileşen {i+1} Adı", key=f"bu_name_{i}")
         value = st.number_input(f"{name} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
-        u_type = st.radio(f"{name} Belirsizlik Tipi", 
-                          [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")],
-                          key=f"bu_type_{i}")
+        u_type = st.radio(
+            f"{name} Belirsizlik Tipi",
+            [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")],
+            key=f"bu_type_{i}"
+        )
         u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
         components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
 
-    # Kullanıcı k değerini belirler
-    k = st.number_input("Genişletilmiş Belirsizlik Katsayısı (k)", min_value=1.0, max_value=5.0, value=2.0, step=0.1)
+    # k değeri: anlık hesaplama tetikleyici
+    k = st.slider("Genişletilmiş Belirsizlik Katsayısı (k)", min_value=1.0, max_value=5.0, value=2.0, step=0.1)
 
-    if st.button(lang_texts.get("bottomup_calc", "Hesapla")):
-        # --- Hesaplama ---
+    # --- Hesaplama ---
+    if len(components) > 0:
         u_squares = []
         for comp in components:
             if comp["u_type"] == lang_texts.get("absolute", "Mutlak"):
@@ -476,12 +483,12 @@ def run_bottom_up_mode(lang_texts):
             else:
                 u_rel = comp["u_val"] / 100
             u_squares.append(u_rel**2)
-            comp["u_rel"] = u_rel  # kaydet
+            comp["u_rel"] = u_rel
 
         u_c_rel = (sum(u_squares))**0.5
         avg_value = sum(comp["value"] for comp in components) / len(components) if components else 0
         u_c = u_c_rel * avg_value
-        U = k * u_c  # <<< artık dinamik k değeri
+        U = k * u_c  # dinamik k değeri
 
         # --- Görsel tablo ---
         st.subheader("Bileşenler ve Göreceli Belirsizlikleri")
@@ -495,8 +502,8 @@ def run_bottom_up_mode(lang_texts):
         })
         st.dataframe(
             comp_df_display.style.format({
-                "Değer": "{:.4f}", 
-                "Belirsizlik": "{:.4f}", 
+                "Değer": "{:.4f}",
+                "Belirsizlik": "{:.4f}",
                 "Göreceli Belirsizlik": "{:.4f}"
             })
         )
@@ -522,6 +529,7 @@ def run_bottom_up_mode(lang_texts):
         ax.set_ylabel("Bileşen")
         ax.set_title("Bileşen Katkıları")
         st.pyplot(fig)
+
 
 # ------------------------
 # Main
