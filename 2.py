@@ -39,8 +39,9 @@ languages = {
         "top_down": "Top-Down (İstatistiksel)",
         "bottom_up": "Bottom-Up (Bileşen Tabanlı)",
         "bottomup_header": "Bottom-Up Modu", 
-        "bottomup_desc": "Bottom-Up yöntemi ile belirsizlik hesaplaması yapabilirsiniz.",  # <-- Ekle
-         "anova_table_label": "ANOVA Tablosu"
+        "bottomup_desc": "Bottom-Up yöntemi ile belirsizlik hesaplaması yapabilirsiniz.",
+        "bottomup_add": "Eklenen Bileşen Sayısı"
+        "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -70,7 +71,8 @@ languages = {
         "top_down": "Top-Down (Statistical)",
         "bottom_up": "Bottom-Up (Component-Based)",
         "bottomup_header": "Bottom-Up Mode",
-        "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",  # <-- Ekle
+        "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",
+        "bottomup_add": "Number of Components"  # <-- EKLE
         "anova_table_label": "ANOVA Table"
     }
 }
