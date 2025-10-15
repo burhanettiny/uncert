@@ -471,8 +471,9 @@ def run_bottom_up_mode(lang_texts):
         u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
         components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
 
-    # k değeri: anlık hesaplama tetikleyici
-    k = st.slider("Genişletilmiş Belirsizlik Katsayısı (k)", min_value=1.0, max_value=5.0, value=2.0, step=0.1)
+    # --- k değeri: manuel giriş ---
+    st.subheader("Genişletilmiş Belirsizlik Katsayısı (k)")
+    k = st.number_input("k değerini giriniz", min_value=1.0, max_value=10.0, value=2.0, step=0.01, key="k_manual")
 
     # --- Hesaplama ---
     if len(components) > 0:
