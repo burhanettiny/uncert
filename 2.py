@@ -443,54 +443,63 @@ def run_validation_mode(lang_texts):
 # Bottom-Up Modu
 # ------------------------
 def run_bottom_up_mode(lang_texts):
-    st.header(lang_texts.get("bottomup_header", "Bottom-Up / Bileşen Bazlı Belirsizlik"))
-    st.write(lang_texts.get("bottomup_desc", "Her bir belirsizlik bileşenini girin."))
+    st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
+    st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    num_comp = st.number_input(
-        lang_texts.get("bottomup_add", "Bileşen Sayısı"),
-        min_value=1, max_value=15, value=3, step=1
-    )
-
+    num_comp = st.number_input(lang_texts.get("bottomup_add", "Bileşen Sayısı"), min_value=1, max_value=15, value=3, step=1)
     components = []
-    for i in range(num_comp):
-        st.subheader(f"Bileşen {i+1}")
-        name = st.text_input(f"Bileşen Adı {i+1}", key=f"bu_name_{i}")
-        u_type = st.radio(f"{name} Belirsizlik Türü", ["Mutlak", "Yüzde"], key=f"bu_type_{i}")
-        value = st.number_input(f"{name} Belirsizlik Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
-        components.append((name, u_type, value))
 
+    st.subheader("Bileşen Girdileri")
+    for i in range(int(num_comp)):
+        st.markdown(f"**Bileşen {i+1}**")
+        name = st.text_input(f"Bileşen {i+1} Adı", key=f"bu_name_{i}")
+        value = st.number_input(f"{name} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
+        u_type = st.radio(f"{name} Belirsizlik Tipi", [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")], key=f"bu_type_{i}")
+        u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
+        components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
     k = st.number_input("Genişletilmiş Belirsizlik Katsayısı k", min_value=1.0, max_value=5.0, value=2.0, step=0.1)
-
     if st.button(lang_texts.get("bottomup_calc", "Hesapla")):
-        # Relatif değerleri hesapla
-        rel_values = []
-        for name, u_type, val in components:
-            if u_type == "Mutlak":
-                rel_values.append(val)
-            else:  # Yüzde
-                rel_values.append(val / 100)
+        # Hesaplama
+        u_squares = []
+        for comp in components:
+            if comp["u_type"] == lang_texts.get("absolute", "Mutlak"):
+                u_rel = comp["u_val"] / comp["value"] if comp["value"] != 0 else 0
+            else:
+                u_rel = comp["u_val"] / 100
+            u_squares.append(u_rel**2)
+            comp["u_rel"] = u_rel  # her bileşen için kaydet
 
-        # Birleşik belirsizlik
-        u_c = np.sqrt(sum([v**2 for v in rel_values]))
-        # Genişletilmiş belirsizlik
-        U = k * u_c
+        u_c_rel = (sum(u_squares))**0.5
+        avg_value = sum(comp["value"] for comp in components) / len(components)
+        u_c = u_c_rel * avg_value
+        U = 2 * u_c  # k=2
 
-        # Sonuçları göster
-        st.markdown("### Sonuçlar")
-        result_table = pd.DataFrame({
-            "Bileşen": [c[0] for c in components],
-            "Belirsizlik": [c[2] for c in components],
-            "Tür": [c[1] for c in components]
+        # ------------------------
+        # Bileşen tablosu
+        # ------------------------
+        st.subheader("Bileşenler ve Göreceli Belirsizlikleri")
+        comp_df = pd.DataFrame(components)
+        comp_df_display = comp_df[["name", "value", "u_type", "u_val", "u_rel"]].rename(columns={
+            "name": "Bileşen",
+            "value": "Değer",
+            "u_type": "Belirsizlik Türü",
+            "u_val": "Belirsizlik",
+            "u_rel": "Göreceli Belirsizlik"
         })
-        st.dataframe(result_table)
+        st.dataframe(comp_df_display.style.format({"Değer": "{:.4f}", "Belirsizlik": "{:.4f}", "Göreceli Belirsizlik": "{:.4f}"}))
 
-        # Formüllerle gösterim
+        # ------------------------
+        # Birleşik ve Genişletilmiş Belirsizlik
+        # ------------------------
+        st.subheader("Birleşik ve Genişletilmiş Belirsizlik")
+        col1, col2 = st.columns(2)
+        col1.metric(lang_texts.get("bottomup_uc", "Birleşik Göreceli Belirsizlik (u_c)"), f"{u_c:.6f}")
+        col2.metric(lang_texts.get("bottomup_U", "Genişletilmiş Belirsizlik (U)"), f"{U:.6f}")
+
+        # Formüller
         st.markdown("### Formüller")
-        st.latex(r"u_c = \sqrt{\sum_{i=1}^{n} u_i^2}")
-        st.latex(rf"U = k \cdot u_c \quad (k = {k})")
-
-        st.markdown(f"**Birleşik Belirsizlik (u_c):** {u_c:.6f}")
-        st.markdown(f"**Genişletilmiş Belirsizlik (U):** {U:.6f}")
+        st.latex(r"u_c = \sqrt{\sum_{i=1}^{n} u_{i,rel}^2} \cdot \bar{x}")
+        st.latex(r"U = 2 \cdot u_c")
 
         # ------------------------
         # Grafik: Bileşenlerin göreceli belirsizlik katkısı
