@@ -442,14 +442,15 @@ def run_validation_mode(lang_texts):
 # ------------------------
 # Bottom-Up Modu
 # ------------------------
+import matplotlib.pyplot as plt
+
 def run_bottom_up_mode(lang_texts):
     st.header(lang_texts.get("bottomup_header", "Bottom-Up Modu"))
     st.write(lang_texts.get("bottomup_desc", "Ölçüm bileşenleri ve belirsizliklerini giriniz."))
 
-    # Kaç bileşen girişi yapılacak
     num_comp = st.number_input(lang_texts.get("bottomup_add", "Bileşen Sayısı"), min_value=1, max_value=15, value=3, step=1)
-
     components = []
+
     st.subheader("Bileşen Girdileri")
     for i in range(int(num_comp)):
         st.markdown(f"**Bileşen {i+1}**")
@@ -457,12 +458,7 @@ def run_bottom_up_mode(lang_texts):
         value = st.number_input(f"{name} Değeri", min_value=0.0, value=0.0, step=0.01, key=f"bu_val_{i}")
         u_type = st.radio(f"{name} Belirsizlik Tipi", [lang_texts.get("absolute", "Mutlak"), lang_texts.get("percent", "Yüzde")], key=f"bu_type_{i}")
         u_val = st.number_input(f"{name} Belirsizlik", min_value=0.0, value=0.0, step=0.01, key=f"bu_unc_{i}")
-        components.append({
-            "name": name,
-            "value": value,
-            "u_type": u_type,
-            "u_val": u_val
-        })
+        components.append({"name": name, "value": value, "u_type": u_type, "u_val": u_val})
 
     if st.button(lang_texts.get("bottomup_calc", "Hesapla")):
         # Hesaplama
@@ -470,20 +466,49 @@ def run_bottom_up_mode(lang_texts):
         for comp in components:
             if comp["u_type"] == lang_texts.get("absolute", "Mutlak"):
                 u_rel = comp["u_val"] / comp["value"] if comp["value"] != 0 else 0
-            else:  # yüzde
+            else:
                 u_rel = comp["u_val"] / 100
             u_squares.append(u_rel**2)
+            comp["u_rel"] = u_rel  # her bileşen için kaydet
 
         u_c_rel = (sum(u_squares))**0.5
-        u_c = u_c_rel * sum(comp["value"] for comp in components) / len(components)  # Ortalama değerle çarp
+        u_c = u_c_rel * sum(comp["value"] for comp in components) / len(components)
         U = 2 * u_c  # k=2
 
-        # Sonuç gösterimi
-        st.subheader("Sonuçlar")
-        st.markdown(f"**{lang_texts.get('bottomup_uc','Birleşik Göreceli Belirsizlik (u_c)')}:** {u_c:.6f}")
-        st.markdown(f"**{lang_texts.get('bottomup_U','Genişletilmiş Belirsizlik (U)')}:** {U:.6f}")
+        # ------------------------
+        # Bileşen tablosu
+        # ------------------------
+        st.subheader("Bileşenler ve Göreceli Belirsizlikleri")
+        comp_df = pd.DataFrame(components)
+        comp_df_display = comp_df[["name", "value", "u_type", "u_val", "u_rel"]].rename(columns={
+            "name": "Bileşen",
+            "value": "Değer",
+            "u_type": "Belirsizlik Türü",
+            "u_val": "Belirsizlik",
+            "u_rel": "Göreceli Belirsizlik"
+        })
+        st.dataframe(comp_df_display.style.format({"Değer": "{:.4f}", "Belirsizlik": "{:.4f}", "Göreceli Belirsizlik": "{:.4f}"}))
 
+        # ------------------------
+        # Birleşik belirsizlik ve genişletilmiş belirsizlik
+        # ------------------------
+        st.subheader("Birleşik ve Genişletilmiş Belirsizlik")
+        col1, col2 = st.columns(2)
+        col1.metric(lang_texts.get("bottomup_uc", "Birleşik Göreceli Belirsizlik (u_c)"), f"{u_c:.6f}")
+        col2.metric(lang_texts.get("bottomup_U", "Genişletilmiş Belirsizlik (U)"), f"{U:.6f}")
 
+        # ------------------------
+        # Grafik: Bileşenlerin göreceli belirsizlik katkısı
+        # ------------------------
+        st.subheader("Bileşenlerin Göreceli Belirsizlik Katkısı")
+        fig, ax = plt.subplots()
+        names = [c["name"] for c in components]
+        rel_vals = [c["u_rel"] for c in components]
+        ax.barh(names, rel_vals, color='skyblue')
+        ax.set_xlabel("Göreceli Belirsizlik")
+        ax.set_ylabel("Bileşen")
+        ax.set_title("Bileşen Katkıları")
+        st.pyplot(fig)
 # ------------------------
 # Main
 # ------------------------
