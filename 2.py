@@ -439,39 +439,6 @@ def run_validation_mode(lang_texts):
 
         # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
-# ------------------------
-# Bottom-Up Modu
-# ------------------------
-import numpy as np
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# ------------------------
-# Dil Metinleri
-# ------------------------
-languages = {
-    "Türkçe": {
-        "bottomup_header": "Bottom-Up Modu",
-        "bottomup_desc": "Ölçüm bileşenleri ve belirsizliklerini giriniz.",
-        "bottomup_add": "Bileşen Sayısı",
-        "bottomup_calc": "Hesapla",
-        "bottomup_uc": "Birleşik Göreceli Belirsizlik (u_c)",
-        "bottomup_U": "Genişletilmiş Belirsizlik (U)",
-        "absolute": "Mutlak",
-        "percent": "Yüzde"
-    },
-    "English": {
-        "bottomup_header": "Bottom-Up Mode",
-        "bottomup_desc": "Enter measurement components and their uncertainties.",
-        "bottomup_add": "Number of Components",
-        "bottomup_calc": "Calculate",
-        "bottomup_uc": "Combined Relative Uncertainty (u_c)",
-        "bottomup_U": "Expanded Uncertainty (U)",
-        "absolute": "Absolute",
-        "percent": "Percent"
-    }
-}
 
 # ------------------------
 # Bottom-Up Mod
