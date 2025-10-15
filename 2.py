@@ -421,6 +421,43 @@ def run_validation_mode(lang_texts):
 
         # --- Günlük ölçüm grafiği ---
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
+# ------------------------
+# Bottom-Up Modu
+# ------------------------
+def run_bottom_up_mode(lang_texts):
+    st.header(lang_texts["bottomup_header"])
+    st.write(lang_texts["bottomup_desc"])
+
+    avg_value = st.number_input("Ortalama Ölçüm Değeri / Mean Value", min_value=0.0, value=1.0, step=0.001, format="%.4f")
+    num_comp = st.number_input(lang_texts["bottomup_add"], min_value=1, max_value=15, value=3, step=1)
+
+    components = []
+    for i in range(num_comp):
+        label = st.text_input(f"Bileşen {i+1} Adı / Component {i+1} Name", value=f"u{i+1}")
+        u_type = st.radio(f"{label} türü / type", ["Mutlak", "Yüzde (%)"], horizontal=True, key=f"type_{i}")
+        if u_type.startswith("Mutlak"):
+            u_val = st.number_input(f"{label} Değeri", min_value=0.0, value=0.0, step=0.001, format="%.4f", key=f"val_abs_{i}")
+            rel_val = u_val / avg_value if avg_value != 0 else 0.0
+        else:
+            perc = st.number_input(f"{label} (%)", min_value=0.0, value=0.0, step=0.01, format="%.3f", key=f"val_perc_{i}")
+            rel_val = perc / 100.0
+        components.append((label, rel_val))
+
+    if st.button(lang_texts["bottomup_calc"]):
+        u_c = np.sqrt(sum([u[1]**2 for u in components]))
+        U = 2 * u_c * avg_value
+        U_rel = u_c * 2 * 100
+
+        st.success("✅ Hesaplama tamamlandı.")
+        st.markdown(f"**{lang_texts['bottomup_uc']}:** {u_c:.6f}")
+        st.markdown(f"**{lang_texts['bottomup_U']}:** {U:.6f}")
+        st.markdown(f"**Göreceli Genişletilmiş Belirsizlik (%):** {U_rel:.3f}")
+
+        results_df = pd.DataFrame({
+            "Bileşen": [c[0] for c in components],
+            "Göreceli Belirsizlik (uᵢ)": [f"{c[1]:.6f}" for c in components]
+        })
+        st.dataframe(results_df)
 
 # ------------------------
 # Main
@@ -429,13 +466,30 @@ def main():
     st.sidebar.title("Ayarlar / Settings")
     lang_choice = st.sidebar.selectbox("Dil / Language", ["Türkçe", "English"])
     lang_texts = languages[lang_choice]
-    mode = st.sidebar.radio("Giriş Modu / Input Mode", ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"], index=0)
-    if mode.startswith("Elle"):
-        run_manual_mode(lang_texts)
-    elif mode.startswith("Validation"):
-        run_validation_mode(lang_texts)
-    else:
-        run_paste_mode(lang_texts)
+
+    # Ana seviye seçim
+    method_choice = st.sidebar.radio(
+        lang_texts["method_choice"],
+        [lang_texts["top_down"], lang_texts["bottom_up"]],
+        index=0
+    )
+
+    if method_choice == lang_texts["top_down"]:
+        mode = st.sidebar.radio(
+            "Giriş Modu / Input Mode",
+            ["Yapıştır / Paste", "Elle / Manual", "Validation / Doğrulama"],
+            index=0
+        )
+        if mode.startswith("Elle"):
+            run_manual_mode(lang_texts)
+        elif mode.startswith("Validation"):
+            run_validation_mode(lang_texts)
+        else:
+            run_paste_mode(lang_texts)
+
+    elif method_choice == lang_texts["bottom_up"]:
+        run_bottom_up_mode(lang_texts)
+
 
 if __name__ == "__main__":
     main()
