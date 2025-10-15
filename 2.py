@@ -43,6 +43,7 @@ languages = {
         "bottomup_add": "Eklenen Bileşen Sayısı",
         "bottomup_calc": "Hesapla",
         "bottomup_uc": "Birleşik Göreceli Belirsizlik",
+        "bottomup_U": "Genişletilmiş Belirsizlik (U)",
         "anova_table_label": "ANOVA Tablosu"
     },
     "English": {
@@ -77,6 +78,7 @@ languages = {
         "bottomup_add": "Number of Components",
         "bottomup_calc": "Calculate",
         "bottomup_uc": "Combined Relative Uncertainty",
+        "bottomup_U": "Expanded Uncertainty (U)",
         "anova_table_label": "ANOVA Table"
     }
 }
