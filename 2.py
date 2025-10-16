@@ -120,7 +120,8 @@ Yalçınkaya, B. (2025). *UncertCalc: Laboratuvar Ölçümleri için Belirsizlik
         "legend": "Series",
         "citation_note": """
 This tool may be cited in academic or technical publications as:
-Yalçınkaya, B. (2025). *UncertCalc: An Uncertainty Calculation Tool for Laboratory Measurements* (Version 1.0) [Computer software].
+Yalçınkaya, B. (2025). *UncertCalc: An Uncertainty Calculation Tool for Laboratory Measurements*.
+(Version 1.0) [https://uncertcalc.streamlit.app/].
 """
 
     }
