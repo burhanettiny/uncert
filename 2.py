@@ -227,14 +227,16 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
             y = height - 50
 
     # Cite edilebilir footer
-    y -= 30
     citation_text = lang_texts.get("citation_note", "").strip()
     if citation_text:
-        textobject = c.beginText(50, 60)
+        textobject = c.beginText()
+        textobject.setTextOrigin(50, 30)  # Alt kenardan 30 pt yukarı
+        textobject.setFont("DejaVuSans", 10)  # Footer font boyutu
         for line in citation_text.split("\n"):
             textobject.textLine(line)
-        c.drawText(textobject)
+            c.drawText(textobject)
 
+    
     c.save()
     buffer.seek(0)
     return buffer
