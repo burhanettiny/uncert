@@ -111,10 +111,6 @@ languages = {
         "value": "Value",
         "day": "Day",
         "legend": "Series"
-        ...
-    }
-
-    },
     }
 }
 
