@@ -181,7 +181,7 @@ def calculate_results(measurements, extras, lang_texts):
 def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
+    width, height = A4
     c.setFont("Helvetica", 12)
     y = height - 50
 
