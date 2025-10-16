@@ -65,7 +65,8 @@ languages = {
         "legend": "Seriler",
         "citation_note": """
 Bu araç aşağıdaki şekilde kaynak gösterilebilir:
-Yalçınkaya, B. (2025). *UncertCalc: Laboratuvar Ölçümleri için Belirsizlik Hesaplama Aracı* (Sürüm 1.0) [Bilgisayar yazılımı].
+Yalçınkaya, B. (2025). *UncertCalc: Laboratuvar Ölçümleri için Belirsizlik Hesaplama Aracı*.
+(Sürüm 1.0) [https://uncertcalc.streamlit.app/].
 """
 
     },
