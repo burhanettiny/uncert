@@ -180,35 +180,39 @@ def calculate_results(measurements, extras, lang_texts):
 # ------------------------
 # PDF Fonksiyonu
 # ------------------------
+import io
+import pandas as pd
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# Türkçe uyumlu font kaydı
+pdfmetrics.registerFont(TTFont("DejaVuSans", "DejaVuSans.ttf"))
+
 def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
     buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
+    c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
-    c.setFont("Helvetica", 12)
+    c.setFont("DejaVuSans", 12)
     y = height - 50
 
     # Başlık
     c.drawString(50, y, title)
     y -= 30
 
-    # Sonuçlar
+    # Sonuç listesi
     for param, value, formula in results_list:
         c.drawString(50, y, f"{param}: {value}")
         y -= 18
-        if y < 100:  # citation için yer kalsın diye biraz yükselttim
-            # Citation'ı alt sayfaya kaydırmadan önce yazdır
-            citation_text = lang_texts.get("citation_note", "").strip()
-            if citation_text:
-                textobject = c.beginText(50, 60)
-                for line in citation_text.split("\n"):
-                    textobject.textLine(line)
-                c.drawText(textobject)
+        if y < 80:
             c.showPage()
+            c.setFont("DejaVuSans", 12)
             y = height - 50
 
-    # ANOVA Tablosu
+    # ANOVA tablosu
     y -= 10
-    c.drawString(50, y, lang_texts.get("anova_table_label", "ANOVA Table"))
+    c.drawString(50, y, lang_texts.get("anova_table_label", "ANOVA Tablosu"))
     y -= 20
     for idx, row in anova_df.iterrows():
         ms_val = row['MS'] if 'MS' in row and not pd.isna(row['MS']) else None
@@ -217,24 +221,14 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
             txt += f", MS={row['MS']:.6f}"
         c.drawString(50, y, txt)
         y -= 14
-        if y < 100:
-            # Citation'ı yaz, sonra yeni sayfa aç
-            citation_text = lang_texts.get("citation_note", "").strip()
-            if citation_text:
-                textobject = c.beginText(50, 60)
-                for line in citation_text.split("\n"):
-                    textobject.textLine(line)
-                c.drawText(textobject)
+        if y < 60:
             c.showPage()
+            c.setFont("DejaVuSans", 12)
             y = height - 50
 
-    # Son sayfanın altına citation ekle (eğer eklenmemişse)
-    citation_text = lang_texts.get("citation_note", "").strip()
-    if citation_text:
-        textobject = c.beginText(50, 60)
-        for line in citation_text.split("\n"):
-            textobject.textLine(line)
-        c.drawText(textobject)
+    # Cite edilebilir footer
+    y -= 30
+    c.drawString(50, 30, "Generated with UncertCalc")
 
     c.save()
     buffer.seek(0)
