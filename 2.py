@@ -228,11 +228,22 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
 
     # Cite edilebilir footer
     y -= 30
-    c.drawString(50, 30, "Generated with UncertCalc")
+    citation_text = lang_texts.get("citation_note", "").strip()
+    if citation_text:
+        textobject = c.beginText(50, 60)
+        for line in citation_text.split("\n"):
+            textobject.textLine(line)
+        c.drawText(textobject)
 
     c.save()
     buffer.seek(0)
     return buffer
+
+
+
+
+
+
 
 # ------------------------
 # Grafik Fonksiyonu
