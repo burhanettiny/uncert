@@ -243,10 +243,19 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
     buffer.seek(0)
     return buffer
 
-
-
-
-
+# ------------------------
+# Sayfa altına cite notu ekleme
+# ------------------------
+def show_citation(lang_texts):
+    citation_text = lang_texts.get("citation_note", "").strip()
+    if citation_text:
+        st.markdown("---")  # ayırıcı çizgi
+        # Çok satırlı metin için <br> kullanıyoruz
+        citation_html = citation_text.replace("\n", "<br>")
+        st.markdown(
+            f"<p style='font-size:10px; color:gray; text-align:center'>{citation_html}</p>",
+            unsafe_allow_html=True
+        )
 
 
 # ------------------------
@@ -668,3 +677,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Footer'ı göster
+show_citation(lang_texts)
