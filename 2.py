@@ -60,7 +60,11 @@ languages = {
         "measurement_number": "Ölçüm No",
         "value": "Değer",
         "day": "Gün",
-        "legend": "Seriler"
+        "legend": "Seriler",
+        "citation_note": """
+Bu araç aşağıdaki şekilde kaynak gösterilebilir:
+Yalçınkaya, B. (2025). *UncertCalc: Laboratuvar Ölçümleri için Belirsizlik Hesaplama Aracı* (Sürüm 1.0) [Bilgisayar yazılımı].
+"""
 
     },
 
@@ -110,7 +114,12 @@ languages = {
         "measurement_number": "Measurement #",
         "value": "Value",
         "day": "Day",
-        "legend": "Series"
+        "legend": "Series",
+        "citation_note": """
+This tool may be cited in academic or technical publications as:
+Yalçınkaya, B. (2025). *UncertCalc: An Uncertainty Calculation Tool for Laboratory Measurements* (Version 1.0) [Computer software].
+"""
+
     }
 }
 
@@ -175,14 +184,27 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
     width, height = letter
     c.setFont("Helvetica", 12)
     y = height - 50
+
+    # Başlık
     c.drawString(50, y, title)
     y -= 30
+
+    # Sonuçlar
     for param, value, formula in results_list:
         c.drawString(50, y, f"{param}: {value}")
         y -= 18
-        if y < 80:
+        if y < 100:  # citation için yer kalsın diye biraz yükselttim
+            # Citation'ı alt sayfaya kaydırmadan önce yazdır
+            citation_text = lang_texts.get("citation_note", "").strip()
+            if citation_text:
+                textobject = c.beginText(50, 60)
+                for line in citation_text.split("\n"):
+                    textobject.textLine(line)
+                c.drawText(textobject)
             c.showPage()
             y = height - 50
+
+    # ANOVA Tablosu
     y -= 10
     c.drawString(50, y, lang_texts.get("anova_table_label", "ANOVA Table"))
     y -= 20
@@ -193,9 +215,25 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
             txt += f", MS={row['MS']:.6f}"
         c.drawString(50, y, txt)
         y -= 14
-        if y < 60:
+        if y < 100:
+            # Citation'ı yaz, sonra yeni sayfa aç
+            citation_text = lang_texts.get("citation_note", "").strip()
+            if citation_text:
+                textobject = c.beginText(50, 60)
+                for line in citation_text.split("\n"):
+                    textobject.textLine(line)
+                c.drawText(textobject)
             c.showPage()
             y = height - 50
+
+    # Son sayfanın altına citation ekle (eğer eklenmemişse)
+    citation_text = lang_texts.get("citation_note", "").strip()
+    if citation_text:
+        textobject = c.beginText(50, 60)
+        for line in citation_text.split("\n"):
+            textobject.textLine(line)
+        c.drawText(textobject)
+
     c.save()
     buffer.seek(0)
     return buffer
