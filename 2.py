@@ -1,8 +1,3 @@
-# 2_fixed.py
-# Streamlit uygulaması — Çok dilli, Top-Down / Bottom-Up / Validation
-# Uyumlu: Streamlit 1.37+ (st.rerun), reportlab ile PDF çıktısı
-# Hazırlayan: ChatGPT (istek üzerine güncellendi)
-
 import streamlit as st
 import numpy as np
 import pandas as pd
