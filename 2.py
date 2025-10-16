@@ -55,7 +55,13 @@ languages = {
 
         "anova_table_label": "ANOVA Tablosu",
         "validation_header": "Validation / Doğrulama Modu",
-        "validation_desc": "Girdi verileri beklenen değerlerle karşılaştırılarak değerlendirilir."
+        "validation_desc": "Girdi verileri beklenen değerlerle karşılaştırılarak değerlendirilir.",
+        "daily_measurements": "Günlük Ölçüm Sonuçları",
+        "measurement_number": "Ölçüm No",
+        "value": "Değer",
+        "day": "Gün",
+        "legend": "Seriler"
+
     },
 
     "English": {
@@ -99,7 +105,16 @@ languages = {
 
         "anova_table_label": "ANOVA Table",
         "validation_header": "Validation Mode",
-        "validation_desc": "Compare measured results against expected parameter values."
+        "validation_desc": "Compare measured results against expected parameter values.",
+        "daily_measurements": "Daily Measurement Results",
+        "measurement_number": "Measurement #",
+        "value": "Value",
+        "day": "Day",
+        "legend": "Series"
+        ...
+    }
+
+    },
     }
 }
 
@@ -196,15 +211,29 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
     if not measurements:
         return
     fig, ax = plt.subplots()
+
     for i, group in enumerate(measurements):
         if len(group) == 0:
             continue
-        label = col_names[i] if i < len(col_names) else f"Day {i+1}"
+        label = col_names[i] if i < len(col_names) else f"{lang_texts.get('day', 'Day')} {i+1}"
         ax.plot(range(1, len(group)+1), group, marker='o', linestyle='-', label=label)
-    ax.set_xlabel("Measurement #")
-    ax.set_ylabel("Value")
+
+    # X eksenini sadece tam sayılarla sınırlama
+    ax.set_xticks(range(1, max(len(group) for group in measurements if len(group) > 0) + 1))
+
+    # Çoklu dil destekli eksen ve başlık metinleri
+    ax.set_xlabel(lang_texts.get("measurement_number", "Measurement #"))
+    ax.set_ylabel(lang_texts.get("value", "Value"))
     ax.set_title(lang_texts.get("daily_measurements", "Daily Measurements"))
-    ax.legend()
+
+    # Legend başlığı dil seçimine göre değişecek şekilde
+    legend_title = lang_texts.get("legend", None)
+    legend = ax.legend(title=legend_title if legend_title else None)
+
+    # Eğer legend başlığı varsa font boyutunu ayarla
+    if legend and legend_title:
+        plt.setp(legend.get_title(), fontsize='10', fontweight='bold')
+
     st.pyplot(fig)
 
 # ------------------------
