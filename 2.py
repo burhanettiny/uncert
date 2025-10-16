@@ -243,20 +243,6 @@ def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
     buffer.seek(0)
     return buffer
 
-# ------------------------
-# Sayfa altına cite notu ekleme
-# ------------------------
-def show_citation(lang_texts):
-    citation_text = lang_texts.get("citation_note", "").strip()
-    if citation_text:
-        st.markdown("---")  # ayırıcı çizgi
-        # Çok satırlı metin için <br> kullanıyoruz
-        citation_html = citation_text.replace("\n", "<br>")
-        st.markdown(
-            f"<p style='font-size:10px; color:gray; text-align:center'>{citation_html}</p>",
-            unsafe_allow_html=True
-        )
-
 
 # ------------------------
 # Grafik Fonksiyonu
@@ -289,6 +275,20 @@ def plot_daily_measurements(measurements, col_names, lang_texts):
         plt.setp(legend.get_title(), fontsize='10', fontweight='bold')
 
     st.pyplot(fig)
+    
+# ------------------------
+# Sayfa altına cite notu ekleme
+# ------------------------
+def show_citation(lang_texts):
+    citation_text = lang_texts.get("citation_note", "").strip()
+    if citation_text:
+        st.markdown("---")  # ayırıcı çizgi
+        # Çok satırlı metin için <br> kullanıyoruz
+        citation_html = citation_text.replace("\n", "<br>")
+        st.markdown(
+            f"<p style='font-size:10px; color:gray; text-align:center'>{citation_html}</p>",
+            unsafe_allow_html=True
+        )
 
 # ------------------------
 # Sonuç Gösterim Fonksiyonu
@@ -372,6 +372,8 @@ def run_manual_mode(lang_texts):
         plot_daily_measurements(valid_groups, df_manual.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts, title="Manual Mode Results")
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results_manual.pdf", mime="application/pdf")
+        # ✅ Altta citation notunu göster
+        show_citation(lang_texts)
 
 # ------------------------
 # Paste Mod (Top-Down paste)
@@ -440,7 +442,8 @@ def run_paste_mode(lang_texts):
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
         pdf_buffer = create_pdf(results_list, anova_df, lang_texts, title="Paste Mode Results")
         st.download_button(label=lang_texts["download_pdf"], data=pdf_buffer, file_name="uncertainty_results.pdf", mime="application/pdf")
-
+        # ✅ Altta citation notunu göster
+        show_citation(lang_texts)
 # ------------------------
 # Validation Mod
 # ------------------------
@@ -543,6 +546,7 @@ def run_validation_mode(lang_texts):
         st.subheader(lang_texts.get("anova_table_label", "ANOVA Table"))
         st.dataframe(anova_df.style.format({"SS": "{:.9f}", "MS": "{:.9f}", "df": "{:.0f}"}))
         plot_daily_measurements(valid_groups, df.columns.tolist(), lang_texts)
+        show_citation(lang_texts)
 
 # ------------------------
 # Bottom-Up Mod (güncel)
@@ -653,6 +657,7 @@ def run_bottom_up_mode(lang_texts):
         ax.set_ylabel("Bileşen")
         ax.set_title("Bileşen Katkıları")
         st.pyplot(fig)
+        show_citation(lang_texts)
 
 # ------------------------
 # Main
@@ -677,6 +682,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Footer'ı göster
-show_citation(lang_texts)
