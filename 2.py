@@ -44,7 +44,10 @@ languages = {
         "bottomup_calc": "Hesapla",
         "bottomup_uc": "Birleşik Göreceli Belirsizlik",
         "bottomup_U": "Genişletilmiş Belirsizlik (U)",
-        "anova_table_label": "ANOVA Tablosu"
+        "anova_table_label": "ANOVA Tablosu",
+        "absolute": "Mutlak",
+        "percent": "Yüzde"
+
     },
     "English": {
         "manual_header": "Manual Input Mode",
@@ -79,7 +82,9 @@ languages = {
         "bottomup_calc": "Calculate",
         "bottomup_uc": "Combined Relative Uncertainty",
         "bottomup_U": "Expanded Uncertainty (U)",
-        "anova_table_label": "ANOVA Table"
+        "anova_table_label": "ANOVA Table",
+        "absolute": "Absolute",
+        "percent": "Percent"
     }
 }
 
