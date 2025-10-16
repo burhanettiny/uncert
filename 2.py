@@ -17,7 +17,7 @@ languages = {
         "extra_uncert_label": "Ek Belirsizlik Kaynağı",
         "extra_uncert_count": "Ek Belirsizlik Kaynağı Sayısı",
         "extra_uncert_type": "{} için tür seçin",
-        "absolute": "Mutlak Değer",
+        "absolute": "Mutlak",
         "percent": "Yüzde",
         "calculate_button": "Sonuçları Hesapla",
         "overall_results": "Genel Sonuçlar",
@@ -38,24 +38,28 @@ languages = {
         "method_choice": "Metot Seçimi",
         "top_down": "Top-Down (İstatistiksel)",
         "bottom_up": "Bottom-Up (Bileşen Tabanlı)",
-        "bottomup_header": "Bottom-Up Modu", 
-        "bottomup_desc": "Bottom-Up yöntemi ile belirsizlik hesaplaması yapabilirsiniz.",
-        "bottomup_add": "Eklenen Bileşen Sayısı",
+
+        # --- Bottom-Up metinleri ---
+        "bottomup_header": "Bottom-Up Modu",
+        "bottomup_desc": "Bileşenleri ve belirsizlik türlerini girerek birleşik belirsizliği hesaplayabilirsiniz.",
+        "bottomup_add": "Bileşen Sayısı",
         "bottomup_calc": "Hesapla",
         "bottomup_uc": "Birleşik Göreceli Belirsizlik",
         "bottomup_U": "Genişletilmiş Belirsizlik (U)",
-        "anova_table_label": "ANOVA Tablosu",
-        "absolute": "Mutlak",
-        "percent": "Yüzde"
+        "bottomup_ref_value": "Referans Değeri (nominal ölçüm değeri)",
+        "load_default": "📊 Örnek Verileri Yükle",
+        "reset": "🧹 Sıfırla",
 
+        "anova_table_label": "ANOVA Tablosu"
     },
+
     "English": {
         "manual_header": "Manual Input Mode",
         "manual_subheader": "Enter Measurements for {}",
-        "extra_uncert_label": "Extra Uncertainty sources",
-        "extra_uncert_count": "Number of Extra sources",
+        "extra_uncert_label": "Extra Uncertainty Sources",
+        "extra_uncert_count": "Number of Extra Sources",
         "extra_uncert_type": "Select type for {}",
-        "absolute": "Absolute Value",
+        "absolute": "Absolute",
         "percent": "Percent",
         "calculate_button": "Calculate Results",
         "overall_results": "Overall Results",
@@ -76,17 +80,22 @@ languages = {
         "method_choice": "Select Method",
         "top_down": "Top-Down (Statistical)",
         "bottom_up": "Bottom-Up (Component-Based)",
+
+        # --- Bottom-Up section ---
         "bottomup_header": "Bottom-Up Mode",
-        "bottomup_desc": "You can calculate uncertainty using the Bottom-Up method.",
+        "bottomup_desc": "Enter components and their uncertainty types to calculate combined uncertainty.",
         "bottomup_add": "Number of Components",
         "bottomup_calc": "Calculate",
         "bottomup_uc": "Combined Relative Uncertainty",
         "bottomup_U": "Expanded Uncertainty (U)",
-        "anova_table_label": "ANOVA Table",
-        "absolute": "Absolute",
-        "percent": "Percent"
+        "bottomup_ref_value": "Reference Value (nominal measurement value)",
+        "load_default": "📊 Load Default Data",
+        "reset": "🧹 Reset",
+
+        "anova_table_label": "ANOVA Table"
     }
 }
+
 
 # ------------------------
 # Hesaplama Fonksiyonları
