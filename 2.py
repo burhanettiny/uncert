@@ -8,6 +8,8 @@ from reportlab.pdfgen import canvas
 import re
 import math
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 
 st.set_page_config(page_title="Uncertainty Tool", layout="wide")
@@ -182,14 +184,7 @@ def calculate_results(measurements, extras, lang_texts):
 # ------------------------
 # PDF Fonksiyonu
 # ------------------------
-import io
-import pandas as pd
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 
-# Türkçe uyumlu font kaydı
 pdfmetrics.registerFont(TTFont("DejaVuSans", "DejaVuSans.ttf"))
 
 def create_pdf(results_list, anova_df, lang_texts, title="Uncertainty Results"):
